@@ -11,20 +11,20 @@ var (
 	errCouldNotRetMsg = errors.New("ldap: could not retrieve message")
 )
 
-type request interface {
-	appendTo(*ber.Packet) error
+type Request interface {
+	AppendTo(*ber.Packet) error
 }
 
-type requestFunc func(*ber.Packet) error
+type RequestFunc func(*ber.Packet) error
 
-func (f requestFunc) appendTo(p *ber.Packet) error {
+func (f RequestFunc) AppendTo(p *ber.Packet) error {
 	return f(p)
 }
 
-func (l *Conn) doRequest(req request) (*messageContext, error) {
+func (l *Conn) DoRequest(req Request) (*MessageContext, error) {
 	packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, l.nextMessageID(), "MessageID"))
-	if err := req.appendTo(packet); err != nil {
+	if err := req.AppendTo(packet); err != nil {
 		return nil, err
 	}
 
@@ -32,7 +32,7 @@ func (l *Conn) doRequest(req request) (*messageContext, error) {
 		l.Debug.PrintPacket(packet)
 	}
 
-	msgCtx, err := l.sendMessage(packet)
+	msgCtx, err := l.SendMessage(packet)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (l *Conn) doRequest(req request) (*messageContext, error) {
 	return msgCtx, nil
 }
 
-func (l *Conn) readPacket(msgCtx *messageContext) (*ber.Packet, error) {
+func (l *Conn) ReadPacket(msgCtx *MessageContext) (*ber.Packet, error) {
 	l.Debug.Printf("%d: waiting for response", msgCtx.id)
 	packetResponse, ok := <-msgCtx.responses
 	if !ok {

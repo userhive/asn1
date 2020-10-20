@@ -224,7 +224,7 @@ func (c *ControlManageDsaIT) GetControlType() string {
 
 // Encode returns the ber packet representation
 func (c *ControlManageDsaIT) Encode() *ber.Packet {
-	//FIXME
+	// FIXME
 	packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
 	packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, ControlTypeManageDsaIT, "Control Type ("+ControlTypeMap[ControlTypeManageDsaIT]+")"))
 	if c.Criticality {
@@ -402,18 +402,18 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 
 		for _, child := range sequence.Children {
 			if child.Tag == 0 {
-				//Warning
+				// Warning
 				warningPacket := child.Children[0]
 				val, err := ber.ParseInt64(warningPacket.Data.Bytes())
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode data bytes: %s", err)
 				}
 				if warningPacket.Tag == 0 {
-					//timeBeforeExpiration
+					// timeBeforeExpiration
 					c.Expire = val
 					warningPacket.Value = c.Expire
 				} else if warningPacket.Tag == 1 {
-					//graceAuthNsRemaining
+					// graceAuthNsRemaining
 					c.Grace = val
 					warningPacket.Value = c.Grace
 				}

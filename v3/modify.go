@@ -82,7 +82,7 @@ func (req *ModifyRequest) appendChange(operation uint, attrType string, attrVals
 	req.Changes = append(req.Changes, Change{operation, PartialAttribute{Type: attrType, Vals: attrVals}})
 }
 
-func (req *ModifyRequest) appendTo(envelope *ber.Packet) error {
+func (req *ModifyRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyRequest, nil, "Modify Request")
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	changes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Changes")
@@ -109,13 +109,13 @@ func NewModifyRequest(dn string, controls []Control) *ModifyRequest {
 
 // Modify performs the ModifyRequest
 func (l *Conn) Modify(modifyRequest *ModifyRequest) error {
-	msgCtx, err := l.doRequest(modifyRequest)
+	msgCtx, err := l.DoRequest(modifyRequest)
 	if err != nil {
 		return err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}

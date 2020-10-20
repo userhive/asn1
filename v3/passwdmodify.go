@@ -30,7 +30,7 @@ type PasswordModifyResult struct {
 	Referral string
 }
 
-func (req *PasswordModifyRequest) appendTo(envelope *ber.Packet) error {
+func (req *PasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedRequest, nil, "Password Modify Extended Operation")
 	pkt.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, passwordModifyOID, "Extended Request Name: Password Modify OID"))
 
@@ -81,13 +81,13 @@ func NewPasswordModifyRequest(userIdentity string, oldPassword string, newPasswo
 
 // PasswordModify performs the modification request
 func (l *Conn) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*PasswordModifyResult, error) {
-	msgCtx, err := l.doRequest(passwordModifyRequest)
+	msgCtx, err := l.DoRequest(passwordModifyRequest)
 	if err != nil {
 		return nil, err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}

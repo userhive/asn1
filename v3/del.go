@@ -14,7 +14,7 @@ type DelRequest struct {
 	Controls []Control
 }
 
-func (req *DelRequest) appendTo(envelope *ber.Packet) error {
+func (req *DelRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypePrimitive, ApplicationDelRequest, req.DN, "Del Request")
 	pkt.Data.Write([]byte(req.DN))
 
@@ -36,13 +36,13 @@ func NewDelRequest(DN string, Controls []Control) *DelRequest {
 
 // Del executes the given delete request
 func (l *Conn) Del(delRequest *DelRequest) error {
-	msgCtx, err := l.doRequest(delRequest)
+	msgCtx, err := l.DoRequest(delRequest)
 	if err != nil {
 		return err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
