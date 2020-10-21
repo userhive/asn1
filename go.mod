@@ -1,3 +1,5 @@
-module github.com/go-asn1-ber/asn1-ber
+module github.com/userhive/asn1ber
 
-go 1.13
+go 1.15
+
+require github.com/davecgh/go-spew v1.1.1
