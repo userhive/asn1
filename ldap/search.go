@@ -231,7 +231,7 @@ type SearchRequest struct {
 	Controls     []Control
 }
 
-func (req *SearchRequest) appendTo(envelope *ber.Packet) error {
+func (req *SearchRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchRequest, nil, "Search Request")
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.BaseDN, "Base DN"))
 	pkt.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, uint64(req.Scope), "Scope"))
@@ -357,19 +357,20 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 
 // Search performs the given search request
 func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
-	msgCtx, err := l.doRequest(searchRequest)
+	msgCtx, err := l.DoRequest(searchRequest)
 	if err != nil {
 		return nil, err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
 	result := &SearchResult{
 		Entries:   make([]*Entry, 0),
 		Referrals: make([]string, 0),
-		Controls:  make([]Control, 0)}
+		Controls:  make([]Control, 0),
+	}
 
 	for {
-		packet, err := l.readPacket(msgCtx)
+		packet, err := l.ReadPacket(msgCtx)
 		if err != nil {
 			return result, err
 		}

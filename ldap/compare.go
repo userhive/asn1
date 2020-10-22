@@ -13,7 +13,7 @@ type CompareRequest struct {
 	Value     string
 }
 
-func (req *CompareRequest) appendTo(envelope *ber.Packet) error {
+func (req *CompareRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareRequest, nil, "Compare Request")
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 
@@ -31,16 +31,17 @@ func (req *CompareRequest) appendTo(envelope *ber.Packet) error {
 // Compare checks to see if the attribute of the dn matches value. Returns true if it does otherwise
 // false with any error that occurs if any.
 func (l *Conn) Compare(dn, attribute, value string) (bool, error) {
-	msgCtx, err := l.doRequest(&CompareRequest{
+	msgCtx, err := l.DoRequest(&CompareRequest{
 		DN:        dn,
 		Attribute: attribute,
-		Value:     value})
+		Value:     value,
+	})
 	if err != nil {
 		return false, err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return false, err
 	}

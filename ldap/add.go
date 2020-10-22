@@ -35,7 +35,7 @@ type AddRequest struct {
 	Controls []Control
 }
 
-func (req *AddRequest) appendTo(envelope *ber.Packet) error {
+func (req *AddRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationAddRequest, nil, "Add Request")
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	attributes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes")
@@ -63,18 +63,17 @@ func NewAddRequest(dn string, controls []Control) *AddRequest {
 		DN:       dn,
 		Controls: controls,
 	}
-
 }
 
 // Add performs the given AddRequest
 func (l *Conn) Add(addRequest *AddRequest) error {
-	msgCtx, err := l.doRequest(addRequest)
+	msgCtx, err := l.DoRequest(addRequest)
 	if err != nil {
 		return err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}

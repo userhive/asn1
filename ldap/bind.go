@@ -42,7 +42,7 @@ func NewSimpleBindRequest(username string, password string, controls []Control) 
 	}
 }
 
-func (req *SimpleBindRequest) appendTo(envelope *ber.Packet) error {
+func (req *SimpleBindRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest, nil, "Bind Request")
 	pkt.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Username, "User Name"))
@@ -62,13 +62,13 @@ func (l *Conn) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResu
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
 
-	msgCtx, err := l.doRequest(simpleBindRequest)
+	msgCtx, err := l.DoRequest(simpleBindRequest)
 	if err != nil {
 		return nil, err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ type DigestMD5BindRequest struct {
 	Controls []Control
 }
 
-func (req *DigestMD5BindRequest) appendTo(envelope *ber.Packet) error {
+func (req *DigestMD5BindRequest) AppendTo(envelope *ber.Packet) error {
 	request := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest, nil, "Bind Request")
 	request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
@@ -170,13 +170,13 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
 
-	msgCtx, err := l.doRequest(digestMD5BindRequest)
+	msgCtx, err := l.DoRequest(digestMD5BindRequest)
 	if err != nil {
 		return nil, err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -235,11 +235,11 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 		auth.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, resp, "Credentials"))
 		request.AppendChild(auth)
 		packet.AppendChild(request)
-		msgCtx, err = l.sendMessage(packet)
+		msgCtx, err = l.SendMessage(packet)
 		if err != nil {
 			return nil, fmt.Errorf("send message: %s", err)
 		}
-		defer l.finishMessage(msgCtx)
+		defer l.FinishMessage(msgCtx)
 		packetResponse, ok := <-msgCtx.responses
 		if !ok {
 			return nil, NewError(ErrorNetwork, errors.New("ldap: response channel closed"))
@@ -261,7 +261,7 @@ func parseParams(str string) (map[string]string, error) {
 	var state int
 	for i := 0; i <= len(str); i++ {
 		switch state {
-		case 0: //reading key
+		case 0: // reading key
 			if i == len(str) {
 				return nil, fmt.Errorf("syntax error on %d", i)
 			}
@@ -270,7 +270,7 @@ func parseParams(str string) (map[string]string, error) {
 				continue
 			}
 			state = 1
-		case 1: //reading value
+		case 1: // reading value
 			if i == len(str) {
 				m[key] = value
 				break
@@ -289,7 +289,7 @@ func parseParams(str string) (map[string]string, error) {
 			default:
 				value += string(str[i])
 			}
-		case 2: //inside quotes
+		case 2: // inside quotes
 			if i == len(str) {
 				return nil, fmt.Errorf("syntax error on %d", i)
 			}
@@ -353,7 +353,7 @@ func randomBytes(len int) []byte {
 	return b
 }
 
-var externalBindRequest = requestFunc(func(envelope *ber.Packet) error {
+var externalBindRequest = RequestFunc(func(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest, nil, "Bind Request")
 	pkt.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
@@ -375,13 +375,13 @@ var externalBindRequest = requestFunc(func(envelope *ber.Packet) error {
 //
 // See https://tools.ietf.org/html/rfc4422#appendix-A
 func (l *Conn) ExternalBind() error {
-	msgCtx, err := l.doRequest(externalBindRequest)
+	msgCtx, err := l.DoRequest(externalBindRequest)
 	if err != nil {
 		return err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ type NTLMBindRequest struct {
 	Controls []Control
 }
 
-func (req *NTLMBindRequest) appendTo(envelope *ber.Packet) error {
+func (req *NTLMBindRequest) AppendTo(envelope *ber.Packet) error {
 	request := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest, nil, "Bind Request")
 	request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
@@ -459,12 +459,12 @@ func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindRes
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
 
-	msgCtx, err := l.doRequest(ntlmBindRequest)
+	msgCtx, err := l.DoRequest(ntlmBindRequest)
 	if err != nil {
 		return nil, err
 	}
-	defer l.finishMessage(msgCtx)
-	packet, err := l.readPacket(msgCtx)
+	defer l.FinishMessage(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -518,11 +518,11 @@ func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindRes
 
 		request.AppendChild(auth)
 		packet.AppendChild(request)
-		msgCtx, err = l.sendMessage(packet)
+		msgCtx, err = l.SendMessage(packet)
 		if err != nil {
 			return nil, fmt.Errorf("send message: %s", err)
 		}
-		defer l.finishMessage(msgCtx)
+		defer l.FinishMessage(msgCtx)
 		packetResponse, ok := <-msgCtx.responses
 		if !ok {
 			return nil, NewError(ErrorNetwork, errors.New("ldap: response channel closed"))

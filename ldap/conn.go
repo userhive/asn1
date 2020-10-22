@@ -50,17 +50,17 @@ func (pr *PacketResponse) ReadPacket() (*ber.Packet, error) {
 	return pr.Packet, pr.Error
 }
 
-type messageContext struct {
+type MessageContext struct {
 	id int64
-	// close(done) should only be called from finishMessage()
+	// close(done) should only be called from FinishMessage()
 	done chan struct{}
-	// close(responses) should only be called from processMessages(), and only sent to from sendResponse()
+	// close(responses) should only be called from processMessages(), and only sent to from SendResponse()
 	responses chan *PacketResponse
 }
 
-// sendResponse should only be called within the processMessages() loop which
+// SendResponse should only be called within the processMessages() loop which
 // is also responsible for closing the responses channel.
-func (msgCtx *messageContext) sendResponse(packet *PacketResponse) {
+func (msgCtx *MessageContext) SendResponse(packet *PacketResponse) {
 	select {
 	case msgCtx.responses <- packet:
 		// Successfully sent packet to message handler.
@@ -74,13 +74,13 @@ type messagePacket struct {
 	Op        int
 	MessageID int64
 	Packet    *ber.Packet
-	Context   *messageContext
+	Context   *MessageContext
 }
 
-type sendMessageFlags uint
+type SendMessageFlags uint
 
 const (
-	startTLS sendMessageFlags = 1 << iota
+	startTLS SendMessageFlags = 1 << iota
 )
 
 // Conn represents an LDAP Connection
@@ -95,7 +95,7 @@ type Conn struct {
 	isStartingTLS       bool
 	Debug               debugging
 	chanConfirm         chan struct{}
-	messageContexts     map[int64]*messageContext
+	messageContexts     map[int64]*MessageContext
 	chanMessage         chan *messagePacket
 	chanMessageID       chan int64
 	wgClose             sync.WaitGroup
@@ -226,7 +226,7 @@ func NewConn(conn net.Conn, isTLS bool) *Conn {
 		chanConfirm:     make(chan struct{}),
 		chanMessageID:   make(chan int64),
 		chanMessage:     make(chan *messagePacket, 10),
-		messageContexts: map[int64]*messageContext{},
+		messageContexts: map[int64]*MessageContext{},
 		requestTimeout:  0,
 		isTLS:           isTLS,
 	}
@@ -298,11 +298,11 @@ func (l *Conn) StartTLS(config *tls.Config) error {
 	packet.AppendChild(request)
 	l.Debug.PrintPacket(packet)
 
-	msgCtx, err := l.sendMessageWithFlags(packet, startTLS)
+	msgCtx, err := l.SendMessageWithFlags(packet, startTLS)
 	if err != nil {
 		return err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
 	l.Debug.Printf("%d: waiting for response", msgCtx.id)
 
@@ -353,11 +353,11 @@ func (l *Conn) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 	return tc.ConnectionState(), true
 }
 
-func (l *Conn) sendMessage(packet *ber.Packet) (*messageContext, error) {
-	return l.sendMessageWithFlags(packet, 0)
+func (l *Conn) SendMessage(packet *ber.Packet) (*MessageContext, error) {
+	return l.SendMessageWithFlags(packet, 0)
 }
 
-func (l *Conn) sendMessageWithFlags(packet *ber.Packet, flags sendMessageFlags) (*messageContext, error) {
+func (l *Conn) SendMessageWithFlags(packet *ber.Packet, flags SendMessageFlags) (*MessageContext, error) {
 	if l.IsClosing() {
 		return nil, NewError(ErrorNetwork, errors.New("ldap: connection closed"))
 	}
@@ -384,7 +384,7 @@ func (l *Conn) sendMessageWithFlags(packet *ber.Packet, flags sendMessageFlags) 
 		Op:        MessageRequest,
 		MessageID: messageID,
 		Packet:    packet,
-		Context: &messageContext{
+		Context: &MessageContext{
 			id:        messageID,
 			done:      make(chan struct{}),
 			responses: responses,
@@ -399,7 +399,7 @@ func (l *Conn) sendMessageWithFlags(packet *ber.Packet, flags sendMessageFlags) 
 	return message.Context, nil
 }
 
-func (l *Conn) finishMessage(msgCtx *messageContext) {
+func (l *Conn) FinishMessage(msgCtx *MessageContext) {
 	close(msgCtx.done)
 
 	if l.IsClosing() {
@@ -439,7 +439,7 @@ func (l *Conn) processMessages() {
 			// If we are closing due to an error, inform anyone who
 			// is waiting about the error.
 			if l.IsClosing() && l.closeErr.Load() != nil {
-				msgCtx.sendResponse(&PacketResponse{Error: l.closeErr.Load().(error)})
+				msgCtx.SendResponse(&PacketResponse{Error: l.closeErr.Load().(error)})
 			}
 			l.Debug.Printf("Closing channel for MessageID %d", messageID)
 			close(msgCtx.responses)
@@ -467,7 +467,7 @@ func (l *Conn) processMessages() {
 				_, err := l.conn.Write(buf)
 				if err != nil {
 					l.Debug.Printf("Error Sending Message: %s", err.Error())
-					message.Context.sendResponse(&PacketResponse{Error: fmt.Errorf("unable to send request: %s", err)})
+					message.Context.SendResponse(&PacketResponse{Error: fmt.Errorf("unable to send request: %s", err)})
 					close(message.Context.responses)
 					break
 				}
@@ -496,7 +496,7 @@ func (l *Conn) processMessages() {
 			case MessageResponse:
 				l.Debug.Printf("Receiving message %d", message.MessageID)
 				if msgCtx, ok := l.messageContexts[message.MessageID]; ok {
-					msgCtx.sendResponse(&PacketResponse{message.Packet, nil})
+					msgCtx.SendResponse(&PacketResponse{message.Packet, nil})
 				} else {
 					log.Printf("Received unexpected message %d, %v", message.MessageID, l.IsClosing())
 					l.Debug.PrintPacket(message.Packet)
@@ -506,7 +506,7 @@ func (l *Conn) processMessages() {
 				// All reads will return immediately
 				if msgCtx, ok := l.messageContexts[message.MessageID]; ok {
 					l.Debug.Printf("Receiving message timeout for %d", message.MessageID)
-					msgCtx.sendResponse(&PacketResponse{message.Packet, errors.New("ldap: connection timed out")})
+					msgCtx.SendResponse(&PacketResponse{message.Packet, errors.New("ldap: connection timed out")})
 					delete(l.messageContexts, message.MessageID)
 					close(msgCtx.responses)
 				}

@@ -35,16 +35,16 @@ func NewModifyDNRequest(dn string, rdn string, delOld bool, newSup string) *Modi
 	}
 }
 
-func (req *ModifyDNRequest) appendTo(envelope *ber.Packet) error {
+func (req *ModifyDNRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyDNRequest, nil, "Modify DN Request")
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.NewRDN, "New RDN"))
 	if req.DeleteOldRDN {
 		buf := []byte{0xff}
-		pkt.AppendChild(ber.NewString(ber.ClassUniversal,ber.TypePrimitive,ber.TagBoolean, string(buf),"Delete old RDN"))
-	}else{
+		pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagBoolean, string(buf), "Delete old RDN"))
+	} else {
 		pkt.AppendChild(ber.NewBoolean(ber.ClassUniversal, ber.TypePrimitive, ber.TagBoolean, req.DeleteOldRDN, "Delete old RDN"))
-	}  
+	}
 	if req.NewSuperior != "" {
 		pkt.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, req.NewSuperior, "New Superior"))
 	}
@@ -57,13 +57,13 @@ func (req *ModifyDNRequest) appendTo(envelope *ber.Packet) error {
 // ModifyDN renames the given DN and optionally move to another base (when the "newSup" argument
 // to NewModifyDNRequest() is not "").
 func (l *Conn) ModifyDN(m *ModifyDNRequest) error {
-	msgCtx, err := l.doRequest(m)
+	msgCtx, err := l.DoRequest(m)
 	if err != nil {
 		return err
 	}
-	defer l.finishMessage(msgCtx)
+	defer l.FinishMessage(msgCtx)
 
-	packet, err := l.readPacket(msgCtx)
+	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
