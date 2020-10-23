@@ -56,11 +56,11 @@ func (req *SimpleBindRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // SimpleBind performs the simple bind operation defined in the given request
-func (l *Conn) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResult, error) {
+func (l *Client) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResult, error) {
 	if simpleBindRequest.Password == "" && !simpleBindRequest.AllowEmptyPassword {
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
-	msgCtx, err := l.DoRequest(simpleBindRequest)
+	msgCtx, err := l.Do(simpleBindRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (l *Conn) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResu
 //
 // It does not allow unauthenticated bind (i.e. empty password). Use the UnauthenticatedBind method
 // for that.
-func (l *Conn) Bind(username, password string) error {
+func (l *Client) Bind(username, password string) error {
 	req := &SimpleBindRequest{
 		Username:           username,
 		Password:           password,
@@ -106,7 +106,7 @@ func (l *Conn) Bind(username, password string) error {
 //
 // See https://tools.ietf.org/html/rfc4513#section-5.1.2 .
 // See https://tools.ietf.org/html/rfc4513#section-6.3.1 .
-func (l *Conn) UnauthenticatedBind(username string) error {
+func (l *Client) UnauthenticatedBind(username string) error {
 	req := &SimpleBindRequest{
 		Username:           username,
 		Password:           "",
@@ -147,7 +147,7 @@ type DigestMD5BindResult struct {
 }
 
 // MD5Bind performs a digest-md5 bind with the given host, username and password.
-func (l *Conn) MD5Bind(host, username, password string) error {
+func (l *Client) MD5Bind(host, username, password string) error {
 	req := &DigestMD5BindRequest{
 		Host:     host,
 		Username: username,
@@ -158,11 +158,11 @@ func (l *Conn) MD5Bind(host, username, password string) error {
 }
 
 // DigestMD5Bind performs the digest-md5 bind operation defined in the given request
-func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*DigestMD5BindResult, error) {
+func (l *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*DigestMD5BindResult, error) {
 	if digestMD5BindRequest.Password == "" {
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
-	msgCtx, err := l.DoRequest(digestMD5BindRequest)
+	msgCtx, err := l.Do(digestMD5BindRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -354,8 +354,8 @@ var externalBindRequest = RequestFunc(func(envelope *ber.Packet) error {
 // Use ldap.DialURL("ldapi://") to connect to the Unix socket before ExternalBind.
 //
 // See https://tools.ietf.org/html/rfc4422#appendix-A
-func (l *Conn) ExternalBind() error {
-	msgCtx, err := l.DoRequest(externalBindRequest)
+func (l *Client) ExternalBind() error {
+	msgCtx, err := l.Do(externalBindRequest)
 	if err != nil {
 		return err
 	}
@@ -407,7 +407,7 @@ type NTLMBindResult struct {
 }
 
 // NTLMBind performs an NTLMSSP Bind with the given domain, username and password
-func (l *Conn) NTLMBind(domain, username, password string) error {
+func (l *Client) NTLMBind(domain, username, password string) error {
 	req := &NTLMBindRequest{
 		Domain:   domain,
 		Username: username,
@@ -418,7 +418,7 @@ func (l *Conn) NTLMBind(domain, username, password string) error {
 }
 
 // NTLMBindWithHash performs an NTLM Bind with an NTLM hash instead of plaintext password (pass-the-hash)
-func (l *Conn) NTLMBindWithHash(domain, username, hash string) error {
+func (l *Client) NTLMBindWithHash(domain, username, hash string) error {
 	req := &NTLMBindRequest{
 		Domain:   domain,
 		Username: username,
@@ -429,11 +429,11 @@ func (l *Conn) NTLMBindWithHash(domain, username, hash string) error {
 }
 
 // NTLMChallengeBind performs the NTLMSSP bind operation defined in the given request
-func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindResult, error) {
+func (l *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindResult, error) {
 	if ntlmBindRequest.Password == "" && ntlmBindRequest.Hash == "" {
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
-	msgCtx, err := l.DoRequest(ntlmBindRequest)
+	msgCtx, err := l.Do(ntlmBindRequest)
 	if err != nil {
 		return nil, err
 	}

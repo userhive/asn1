@@ -58,7 +58,7 @@ func TestGetLDAPError(t *testing.T) {
 	t.Parallel()
 	diagnosticMessage := "Detailed error message"
 	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse.Tag(), nil, "Bind Response")
-	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(LDAPResultInvalidCredentials), "resultCode"))
+	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(ResultInvalidCredentials), "resultCode"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "dc=example,dc=org", "matchedDN"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, diagnosticMessage, "diagnosticMessage"))
 	packet := ber.NewSequence("LDAPMessage")
@@ -69,8 +69,8 @@ func TestGetLDAPError(t *testing.T) {
 		t.Errorf("Did not get error response")
 	}
 	ldapError := err.(*Error)
-	if ldapError.ResultCode != LDAPResultInvalidCredentials {
-		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.ResultCode, LDAPResultInvalidCredentials)
+	if ldapError.ResultCode != ResultInvalidCredentials {
+		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.ResultCode, ResultInvalidCredentials)
 	}
 	if ldapError.Err.Error() != diagnosticMessage {
 		t.Errorf("Got incorrect error message in LDAP error; got %v, expected %v", ldapError.Err.Error(), diagnosticMessage)

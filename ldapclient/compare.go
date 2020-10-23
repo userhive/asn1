@@ -26,8 +26,8 @@ func (req *CompareRequest) AppendTo(envelope *ber.Packet) error {
 
 // Compare checks to see if the attribute of the dn matches value. Returns true if it does otherwise
 // false with any error that occurs if any.
-func (l *Conn) Compare(dn, attribute, value string) (bool, error) {
-	msgCtx, err := l.DoRequest(&CompareRequest{
+func (l *Client) Compare(dn, attribute, value string) (bool, error) {
+	msgCtx, err := l.Do(&CompareRequest{
 		DN:        dn,
 		Attribute: attribute,
 		Value:     value,
@@ -43,9 +43,9 @@ func (l *Conn) Compare(dn, attribute, value string) (bool, error) {
 	if packet.Children[1].Tag == ApplicationCompareResponse.Tag() {
 		err := GetLDAPError(packet)
 		switch {
-		case IsErrorWithCode(err, LDAPResultCompareTrue):
+		case IsErrorWithCode(err, ResultCompareTrue):
 			return true, nil
-		case IsErrorWithCode(err, LDAPResultCompareFalse):
+		case IsErrorWithCode(err, ResultCompareFalse):
 			return false, nil
 		default:
 			return false, err

@@ -64,8 +64,8 @@ func NewAddRequest(dn string, controls []Control) *AddRequest {
 }
 
 // Add performs the given AddRequest
-func (l *Conn) Add(addRequest *AddRequest) error {
-	msgCtx, err := l.DoRequest(addRequest)
+func (l *Client) Add(addRequest *AddRequest) error {
+	msgCtx, err := l.Do(addRequest)
 	if err != nil {
 		return err
 	}

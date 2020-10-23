@@ -54,8 +54,8 @@ func (req *ModifyDNRequest) AppendTo(envelope *ber.Packet) error {
 
 // ModifyDN renames the given DN and optionally move to another base (when the "newSup" argument
 // to NewModifyDNRequest() is not "").
-func (l *Conn) ModifyDN(m *ModifyDNRequest) error {
-	msgCtx, err := l.DoRequest(m)
+func (l *Client) ModifyDN(m *ModifyDNRequest) error {
+	msgCtx, err := l.Do(m)
 	if err != nil {
 		return err
 	}

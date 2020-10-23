@@ -106,8 +106,8 @@ func NewModifyRequest(dn string, controls []Control) *ModifyRequest {
 }
 
 // Modify performs the ModifyRequest
-func (l *Conn) Modify(modifyRequest *ModifyRequest) error {
-	msgCtx, err := l.DoRequest(modifyRequest)
+func (l *Client) Modify(modifyRequest *ModifyRequest) error {
+	msgCtx, err := l.Do(modifyRequest)
 	if err != nil {
 		return err
 	}

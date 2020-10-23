@@ -250,7 +250,7 @@ func addRequestDescriptions(packet *ber.Packet) error {
 }
 
 func addDefaultLDAPResponseDescriptions(packet *ber.Packet) error {
-	resultCode := uint16(LDAPResultSuccess)
+	resultCode := uint16(ResultSuccess)
 	matchedDN := ""
 	description := "Success"
 	if err := GetLDAPError(packet); err != nil {
@@ -258,7 +258,7 @@ func addDefaultLDAPResponseDescriptions(packet *ber.Packet) error {
 		matchedDN = err.(*Error).MatchedDN
 		description = "Error Message"
 	}
-	packet.Children[1].Children[0].Desc = "Result Code (" + LDAPResultCodeMap[resultCode] + ")"
+	packet.Children[1].Children[0].Desc = "Result Code (" + ResultCodeMap[resultCode] + ")"
 	packet.Children[1].Children[1].Desc = "Matched DN (" + matchedDN + ")"
 	packet.Children[1].Children[2].Desc = description
 	if len(packet.Children[1].Children) > 3 {

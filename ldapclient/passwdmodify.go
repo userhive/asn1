@@ -76,8 +76,8 @@ func NewPasswordModifyRequest(userIdentity string, oldPassword string, newPasswo
 }
 
 // PasswordModify performs the modification request
-func (l *Conn) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*PasswordModifyResult, error) {
-	msgCtx, err := l.DoRequest(passwordModifyRequest)
+func (l *Client) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*PasswordModifyResult, error) {
+	msgCtx, err := l.Do(passwordModifyRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (l *Conn) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*Pa
 	if packet.Children[1].Tag == ApplicationExtendedResponse.Tag() {
 		err := GetLDAPError(packet)
 		if err != nil {
-			if IsErrorWithCode(err, LDAPResultReferral) {
+			if IsErrorWithCode(err, ResultReferral) {
 				for _, child := range packet.Children[1].Children {
 					if child.Tag == 3 {
 						result.Referral = child.Children[0].Value.(string)

@@ -288,7 +288,7 @@ func NewSearchRequest(
 //  - given SearchRequest contains a control of type ControlTypePaging with pagingSize equal to the size requested: no change to the search request
 //  - given SearchRequest contains a control of type ControlTypePaging with pagingSize not equal to the size requested: fail without issuing any queries
 // A requested pagingSize of 0 is interpreted as no limit by LDAP servers.
-func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32) (*SearchResult, error) {
+func (l *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32) (*SearchResult, error) {
 	var pagingControl *ControlPaging
 	control := FindControl(searchRequest.Controls, ControlTypePaging)
 	if control == nil {
@@ -347,8 +347,8 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 }
 
 // Search performs the given search request
-func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
-	msgCtx, err := l.DoRequest(searchRequest)
+func (l *Client) Search(searchRequest *SearchRequest) (*SearchResult, error) {
+	msgCtx, err := l.Do(searchRequest)
 	if err != nil {
 		return nil, err
 	}

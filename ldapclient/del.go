@@ -33,8 +33,8 @@ func NewDelRequest(DN string, Controls []Control) *DelRequest {
 }
 
 // Del executes the given delete request
-func (l *Conn) Del(delRequest *DelRequest) error {
-	msgCtx, err := l.DoRequest(delRequest)
+func (l *Client) Del(delRequest *DelRequest) error {
+	msgCtx, err := l.Do(delRequest)
 	if err != nil {
 		return err
 	}
