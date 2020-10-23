@@ -2,7 +2,7 @@ package ldapclient
 
 import (
 	"bytes"
-	enchex "encoding/hex"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -62,7 +62,7 @@ func ParseDN(str string) (*DN, error) {
 				return nil, errors.New("got corrupted escaped character")
 			}
 			dst := []byte{0}
-			n, err := enchex.Decode([]byte(dst), []byte(str[i:i+2]))
+			n, err := hex.Decode([]byte(dst), []byte(str[i:i+2]))
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode escaped character: %s", err)
 			} else if n != 1 {
@@ -87,7 +87,7 @@ func ParseDN(str string) (*DN, error) {
 				} else {
 					data = str[i:]
 				}
-				rawBER, err := enchex.DecodeString(data)
+				rawBER, err := hex.DecodeString(data)
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode BER encoding: %s", err)
 				}

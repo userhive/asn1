@@ -3,7 +3,7 @@ package ldapclient
 import (
 	"bytes"
 	"crypto/md5"
-	enchex "encoding/hex"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -292,7 +292,7 @@ func parseParams(str string) (map[string]string, error) {
 func computeResponse(params map[string]string, uri, username, password string) string {
 	nc := "00000001"
 	qop := "auth"
-	cnonce := enchex.EncodeToString(randomBytes(16))
+	cnonce := hex.EncodeToString(randomBytes(16))
 	x := username + ":" + params["realm"] + ":" + password
 	y := md5Hash([]byte(x))
 	a1 := bytes.NewBuffer(y)
@@ -302,15 +302,15 @@ func computeResponse(params map[string]string, uri, username, password string) s
 	}
 	a2 := bytes.NewBuffer([]byte("AUTHENTICATE"))
 	a2.WriteString(":" + uri)
-	ha1 := enchex.EncodeToString(md5Hash(a1.Bytes()))
-	ha2 := enchex.EncodeToString(md5Hash(a2.Bytes()))
+	ha1 := hex.EncodeToString(md5Hash(a1.Bytes()))
+	ha2 := hex.EncodeToString(md5Hash(a2.Bytes()))
 	kd := ha1
 	kd += ":" + params["nonce"]
 	kd += ":" + nc
 	kd += ":" + cnonce
 	kd += ":" + qop
 	kd += ":" + ha2
-	resp := enchex.EncodeToString(md5Hash([]byte(kd)))
+	resp := hex.EncodeToString(md5Hash([]byte(kd)))
 	return fmt.Sprintf(
 		`username="%s",realm="%s",nonce="%s",cnonce="%s",nc=00000001,qop=%s,digest-uri="%s",response=%s`,
 		username,
