@@ -12,12 +12,12 @@ import (
 
 // TestNilPacket tests that nil packets don't cause a panic.
 func TestNilPacket(t *testing.T) {
+	t.Parallel()
 	// Test for nil packet
 	err := GetLDAPError(nil)
 	if !IsErrorWithCode(err, ErrorUnexpectedResponse) {
 		t.Errorf("Should have an 'ErrorUnexpectedResponse' error in nil packets, got: %v", err)
 	}
-
 	// Test for nil result
 	kids := []*ber.Packet{
 		{},  // Unused
@@ -25,7 +25,6 @@ func TestNilPacket(t *testing.T) {
 	}
 	pack := &ber.Packet{Children: kids}
 	err = GetLDAPError(pack)
-
 	if !IsErrorWithCode(err, ErrorUnexpectedResponse) {
 		t.Errorf("Should have an 'ErrorUnexpectedResponse' error in nil packets, got: %v", err)
 	}
@@ -34,21 +33,17 @@ func TestNilPacket(t *testing.T) {
 // TestConnReadErr tests that an unexpected error reading from underlying
 // connection bubbles up to the goroutine which makes a request.
 func TestConnReadErr(t *testing.T) {
+	t.Parallel()
 	conn := &signalErrConn{
 		signals: make(chan error),
 	}
-
 	ldapConn := NewConn(conn, false)
 	ldapConn.Start()
-
 	// Make a dummy search request.
 	searchReq := NewSearchRequest("dc=example,dc=com", ScopeWholeSubtree, DerefAlways, 0, 0, false, "(objectClass=*)", nil, nil)
-
 	expectedError := errors.New("this is the error you are looking for")
-
 	// Send the signal after a short amount of time.
 	time.AfterFunc(10*time.Millisecond, func() { conn.signals <- expectedError })
-
 	// This should block until the underlying conn gets the error signal
 	// which should bubble up through the reader() goroutine, close the
 	// connection, and
@@ -60,6 +55,7 @@ func TestConnReadErr(t *testing.T) {
 
 // TestGetLDAPError tests parsing of result with a error response.
 func TestGetLDAPError(t *testing.T) {
+	t.Parallel()
 	diagnosticMessage := "Detailed error message"
 	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse.Tag(), nil, "Bind Response")
 	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(LDAPResultInvalidCredentials), "resultCode"))
@@ -72,7 +68,6 @@ func TestGetLDAPError(t *testing.T) {
 	if err == nil {
 		t.Errorf("Did not get error response")
 	}
-
 	ldapError := err.(*Error)
 	if ldapError.ResultCode != LDAPResultInvalidCredentials {
 		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.ResultCode, LDAPResultInvalidCredentials)
@@ -84,6 +79,7 @@ func TestGetLDAPError(t *testing.T) {
 
 // TestGetLDAPErrorSuccess tests parsing of a result with no error (resultCode == 0).
 func TestGetLDAPErrorSuccess(t *testing.T) {
+	t.Parallel()
 	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse.Tag(), nil, "Bind Response")
 	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "resultCode"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "matchedDN"))

@@ -11,24 +11,29 @@ import (
 )
 
 func TestControlPaging(t *testing.T) {
+	t.Parallel()
 	runControlTest(t, NewControlPaging(0))
 	runControlTest(t, NewControlPaging(100))
 }
 
 func TestControlManageDsaIT(t *testing.T) {
+	t.Parallel()
 	runControlTest(t, NewControlManageDsaIT(true))
 	runControlTest(t, NewControlManageDsaIT(false))
 }
 
 func TestControlMicrosoftNotification(t *testing.T) {
+	t.Parallel()
 	runControlTest(t, NewControlMicrosoftNotification())
 }
 
 func TestControlMicrosoftShowDeleted(t *testing.T) {
+	t.Parallel()
 	runControlTest(t, NewControlMicrosoftShowDeleted())
 }
 
 func TestControlString(t *testing.T) {
+	t.Parallel()
 	runControlTest(t, NewControlString("x", true, "y"))
 	runControlTest(t, NewControlString("x", true, ""))
 	runControlTest(t, NewControlString("x", false, "y"))
@@ -42,10 +47,8 @@ func runControlTest(t *testing.T, originalControl Control) {
 			header = fmt.Sprintf("%s:%d: ", caller.Name(), line)
 		}
 	}
-
 	encodedPacket := originalControl.Encode()
 	encodedBytes := encodedPacket.Bytes()
-
 	// Decode directly from the encoded packet (ensures Value is correct)
 	fromPacket, err := DecodeControl(encodedPacket)
 	if err != nil {
@@ -57,7 +60,6 @@ func runControlTest(t *testing.T, originalControl Control) {
 	if reflect.TypeOf(originalControl) != reflect.TypeOf(fromPacket) {
 		t.Errorf("%sgot different type decoding from encoded packet: %T vs %T", header, fromPacket, originalControl)
 	}
-
 	// Decode from the wire bytes (ensures ber-encoding is correct)
 	pkt, err := ber.ParseBytes(encodedBytes)
 	if err != nil {
@@ -76,24 +78,29 @@ func runControlTest(t *testing.T, originalControl Control) {
 }
 
 func TestDescribeControlManageDsaIT(t *testing.T) {
+	t.Parallel()
 	runAddControlDescriptions(t, NewControlManageDsaIT(false), "Control Type (Manage DSA IT)")
 	runAddControlDescriptions(t, NewControlManageDsaIT(true), "Control Type (Manage DSA IT)", "Criticality")
 }
 
 func TestDescribeControlPaging(t *testing.T) {
+	t.Parallel()
 	runAddControlDescriptions(t, NewControlPaging(100), "Control Type (Paging)", "Control Value (Paging)")
 	runAddControlDescriptions(t, NewControlPaging(0), "Control Type (Paging)", "Control Value (Paging)")
 }
 
 func TestDescribeControlMicrosoftNotification(t *testing.T) {
+	t.Parallel()
 	runAddControlDescriptions(t, NewControlMicrosoftNotification(), "Control Type (Change Notification - Microsoft)")
 }
 
 func TestDescribeControlMicrosoftShowDeleted(t *testing.T) {
+	t.Parallel()
 	runAddControlDescriptions(t, NewControlMicrosoftShowDeleted(), "Control Type (Show Deleted Objects - Microsoft)")
 }
 
 func TestDescribeControlString(t *testing.T) {
+	t.Parallel()
 	runAddControlDescriptions(t, NewControlString("x", true, "y"), "Control Type ()", "Criticality", "Control Value")
 	runAddControlDescriptions(t, NewControlString("x", true, ""), "Control Type ()", "Criticality")
 	runAddControlDescriptions(t, NewControlString("x", false, "y"), "Control Type ()", "Control Value")
@@ -107,7 +114,6 @@ func runAddControlDescriptions(t *testing.T, originalControl Control, childDescr
 			header = fmt.Sprintf("%s:%d: ", caller.Name(), line)
 		}
 	}
-
 	encodedControls := encodeControls([]Control{originalControl})
 	addControlDescriptions(encodedControls)
 	encodedPacket := encodedControls.Children[0]
@@ -122,10 +128,10 @@ func runAddControlDescriptions(t *testing.T, originalControl Control, childDescr
 }
 
 func TestDecodeControl(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		packet *ber.Packet
 	}
-
 	tests := []struct {
 		name    string
 		args    args
@@ -180,16 +186,15 @@ func TestDecodeControl(t *testing.T) {
 		}
 		tests[i].args.packet = tests[i].args.packet.Children[0]
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := DecodeControl(tt.args.packet)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DecodeControl() error = %v, wantErr %v", err, tt.wantErr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := DecodeControl(test.args.packet)
+			if (err != nil) != test.wantErr {
+				t.Errorf("DecodeControl() error = %v, wantErr %v", err, test.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("DecodeControl() got = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("DecodeControl() got = %v, want %v", got, test.want)
 			}
 		})
 	}

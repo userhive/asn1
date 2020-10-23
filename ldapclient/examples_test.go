@@ -16,7 +16,6 @@ func ExampleConn_Bind() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	err = l.Bind("cn=read-only-admin,dc=example,dc=com", "password")
 	if err != nil {
 		log.Fatal(err)
@@ -30,7 +29,6 @@ func ExampleConn_Search() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	searchRequest := NewSearchRequest(
 		"dc=example,dc=com", // The base dn to search
 		ScopeWholeSubtree, NeverDerefAliases, 0, 0, false,
@@ -38,12 +36,10 @@ func ExampleConn_Search() {
 		[]string{"dn", "cn"},                    // A list attributes to retrieve
 		nil,
 	)
-
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	for _, entry := range sr.Entries {
 		fmt.Printf("%s: %v\n", entry.DN, entry.GetAttributeValue("cn"))
 	}
@@ -56,13 +52,11 @@ func ExampleConn_StartTLS() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	// Reconnect with TLS
 	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Operations via l are now encrypted
 }
 
@@ -73,12 +67,10 @@ func ExampleConn_Compare() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	matched, err := l.Compare("cn=user,dc=example,dc=com", "uid", "someuserid")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println(matched)
 }
 
@@ -88,15 +80,12 @@ func ExampleConn_PasswordModify_admin() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	err = l.Bind("cn=admin,dc=example,dc=com", "password")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	passwordModifyRequest := NewPasswordModifyRequest("cn=user,dc=example,dc=com", "", "NewPassword")
 	_, err = l.PasswordModify(passwordModifyRequest)
-
 	if err != nil {
 		log.Fatalf("Password could not be changed: %s", err.Error())
 	}
@@ -108,18 +97,15 @@ func ExampleConn_PasswordModify_generatedPassword() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	err = l.Bind("cn=user,dc=example,dc=com", "password")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	passwordModifyRequest := NewPasswordModifyRequest("", "OldPassword", "")
 	passwordModifyResponse, err := l.PasswordModify(passwordModifyRequest)
 	if err != nil {
 		log.Fatalf("Password could not be changed: %s", err.Error())
 	}
-
 	generatedPassword := passwordModifyResponse.GeneratedPassword
 	log.Printf("Generated password: %s\n", generatedPassword)
 }
@@ -130,15 +116,12 @@ func ExampleConn_PasswordModify_setNewPassword() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	err = l.Bind("cn=user,dc=example,dc=com", "password")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	passwordModifyRequest := NewPasswordModifyRequest("", "OldPassword", "NewPassword")
 	_, err = l.PasswordModify(passwordModifyRequest)
-
 	if err != nil {
 		log.Fatalf("Password could not be changed: %s", err.Error())
 	}
@@ -150,12 +133,10 @@ func ExampleConn_Modify() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	// Add a description, and replace the mail attributes
 	modify := NewModifyRequest("cn=user,dc=example,dc=com", nil)
 	modify.Add("description", []string{"An example user"})
 	modify.Replace("mail", []string{"user@example.org"})
-
 	err = l.Modify(modify)
 	if err != nil {
 		log.Fatal(err)
@@ -167,28 +148,23 @@ func Example_userAuthentication() {
 	// The username and password we want to check
 	username := "someuser"
 	password := "userpassword"
-
 	bindusername := "readonly"
 	bindpassword := "password"
-
 	l, err := DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	// Reconnect with TLS
 	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// First bind with a read only user
 	err = l.Bind(bindusername, bindpassword)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Search for the given username
 	searchRequest := NewSearchRequest(
 		"dc=example,dc=com",
@@ -197,24 +173,19 @@ func Example_userAuthentication() {
 		[]string{"dn"},
 		nil,
 	)
-
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	if len(sr.Entries) != 1 {
 		log.Fatal("User does not exist or too many entries returned")
 	}
-
 	userdn := sr.Entries[0].DN
-
 	// Bind as the user to verify their password
 	err = l.Bind(userdn, password)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Rebind as the read only user for any further queries
 	err = l.Bind(bindusername, bindpassword)
 	if err != nil {
@@ -228,14 +199,11 @@ func Example_beherappolicy() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	controls := []Control{}
 	controls = append(controls, NewControlBeheraPasswordPolicy())
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", controls)
-
 	r, err := l.SimpleBind(bindRequest)
 	ppolicyControl := FindControl(r.Controls, ControlTypeBeheraPasswordPolicy)
-
 	var ppolicy *ControlBeheraPasswordPolicy
 	if ppolicyControl != nil {
 		ppolicy = ppolicyControl.(*ControlBeheraPasswordPolicy)
@@ -268,23 +236,17 @@ func Example_vchuppolicy() {
 	}
 	defer l.Close()
 	l.Debug = true
-
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", nil)
-
 	r, err := l.SimpleBind(bindRequest)
-
 	passwordMustChangeControl := FindControl(r.Controls, ControlTypeVChuPasswordMustChange)
 	var passwordMustChange *ControlVChuPasswordMustChange
 	if passwordMustChangeControl != nil {
 		passwordMustChange = passwordMustChangeControl.(*ControlVChuPasswordMustChange)
 	}
-
 	if passwordMustChange != nil && passwordMustChange.MustChange {
 		log.Printf("Password Must be changed.\n")
 	}
-
 	passwordWarningControl := FindControl(r.Controls, ControlTypeVChuPasswordWarning)
-
 	var passwordWarning *ControlVChuPasswordWarning
 	if passwordWarningControl != nil {
 		passwordWarning = passwordWarningControl.(*ControlVChuPasswordWarning)
@@ -312,23 +274,19 @@ func ExampleControlPaging_manualPaging() {
 		log.Fatal(err)
 	}
 	defer conn.Close()
-
 	var pageSize uint32 = 32
 	searchBase := "dc=example,dc=com"
 	filter := "(objectClass=group)"
 	pagingControl := NewControlPaging(pageSize)
 	attributes := []string{}
 	controls := []Control{pagingControl}
-
 	for {
 		request := NewSearchRequest(searchBase, ScopeWholeSubtree, DerefAlways, 0, 0, false, filter, attributes, controls)
 		response, err := conn.Search(request)
 		if err != nil {
 			log.Fatalf("Failed to execute search request: %s", err.Error())
 		}
-
 		// [do something with the response entries]
-
 		// In order to prepare the next request, we check if the response
 		// contains another ControlPaging object and a not-empty cookie and
 		// copy that cookie into our pagingControl object:
@@ -348,13 +306,11 @@ func ExampleConn_ExternalBind() {
 	ldapCert := "/path/to/cert.pem"
 	ldapKey := "/path/to/key.pem"
 	ldapCAchain := "/path/to/ca_chain.pem"
-
 	// Load client cert and key
 	cert, err := tls.LoadX509KeyPair(ldapCert, ldapKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Load CA chain
 	caCert, err := ioutil.ReadFile(ldapCAchain)
 	if err != nil {
@@ -362,32 +318,27 @@ func ExampleConn_ExternalBind() {
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
-
 	// Setup TLS with ldap client cert
 	tlsConfig := &tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		RootCAs:            caCertPool,
 		InsecureSkipVerify: true,
 	}
-
 	// connect to ldap server
 	l, err := DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer l.Close()
-
 	// reconnect using tls
 	err = l.StartTLS(tlsConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// sasl external bind
 	err = l.ExternalBind()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Conduct ldap queries
 }

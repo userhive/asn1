@@ -26,6 +26,7 @@ var attributes = []string{
 }
 
 func TestUnsecureDialURL(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
@@ -34,6 +35,7 @@ func TestUnsecureDialURL(t *testing.T) {
 }
 
 func TestSecureDialURL(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
 	if err != nil {
 		t.Fatal(err)
@@ -42,6 +44,7 @@ func TestSecureDialURL(t *testing.T) {
 }
 
 func TestStartTLS(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
@@ -54,6 +57,7 @@ func TestStartTLS(t *testing.T) {
 }
 
 func TestTLSConnectionState(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +67,6 @@ func TestTLSConnectionState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	cs, ok := l.TLSConnectionState()
 	if !ok {
 		t.Errorf("TLSConnectionState returned ok == false; want true")
@@ -74,19 +77,18 @@ func TestTLSConnectionState(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-
 	searchRequest := NewSearchRequest(
 		baseDN,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
 		testFilters()[0],
 		attributes,
 		nil)
-
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		t.Fatal(err)
@@ -95,52 +97,46 @@ func TestSearch(t *testing.T) {
 }
 
 func TestSearchStartTLS(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-
 	searchRequest := NewSearchRequest(
 		baseDN,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
 		testFilters()[0],
 		attributes,
 		nil)
-
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-
 	t.Log("TestSearchStartTLS: upgrading with startTLS")
 	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	sr, err = l.Search(searchRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
 }
 
 func TestSearchWithPaging(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-
 	err = l.UnauthenticatedBind("")
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	searchRequest := NewSearchRequest(
 		baseDN,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
@@ -151,9 +147,7 @@ func TestSearchWithPaging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-
 	searchRequest = NewSearchRequest(
 		baseDN,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
@@ -164,9 +158,7 @@ func TestSearchWithPaging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-
 	searchRequest = NewSearchRequest(
 		baseDN,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
@@ -234,51 +226,47 @@ func testMultiGoroutineSearch(t *testing.T, TLS bool, startTLS bool) {
 }
 
 func TestMultiGoroutineSearch(t *testing.T) {
+	t.Parallel()
 	testMultiGoroutineSearch(t, false, false)
 	testMultiGoroutineSearch(t, true, true)
 	testMultiGoroutineSearch(t, false, true)
 }
 
 func TestCompare(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-
 	const dn = "cn=math mich,ou=User Groups,ou=Groups,dc=umich,dc=edu"
 	const attribute = "cn"
 	const value = "math mich"
-
 	sr, err := l.Compare(dn, attribute, value)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	t.Log("Compare result:", sr)
 }
 
 func TestMatchDNError(t *testing.T) {
+	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-
 	const wrongBase = "ou=roups,dc=umich,dc=edu"
-
 	searchRequest := NewSearchRequest(
 		wrongBase,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
 		testFilters()[0],
 		attributes,
 		nil)
-
 	_, err = l.Search(searchRequest)
 	if err == nil {
 		t.Fatal("Expected Error, got nil")
 	}
-
 	t.Log("TestMatchDNError:", err)
 }
 
@@ -302,10 +290,10 @@ func Test_addControlDescriptions(t *testing.T) {
 		{name: "passwordTooYoung", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x7})}, wantErr: false},
 		{name: "passwordInHistory", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x8})}, wantErr: false},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := addControlDescriptions(tt.args.packet); (err != nil) != tt.wantErr {
-				t.Errorf("addControlDescriptions() error = %v, wantErr %v", err, tt.wantErr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := addControlDescriptions(test.args.packet); (err != nil) != test.wantErr {
+				t.Errorf("addControlDescriptions() error = %v, wantErr %v", err, test.wantErr)
 			}
 		})
 	}

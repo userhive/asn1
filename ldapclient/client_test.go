@@ -16,6 +16,7 @@ import (
 )
 
 func TestUnresponsiveConnection(t *testing.T) {
+	t.Parallel()
 	// The do-nothing server that accepts requests and does nothing
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	}))
@@ -24,27 +25,23 @@ func TestUnresponsiveConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error connecting to localhost tcp: %v", err)
 	}
-
 	// Create an Ldap connection
 	conn := NewConn(c, false)
 	conn.SetTimeout(time.Millisecond)
 	conn.Start()
 	defer conn.Close()
-
 	// Mock a packet
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, conn.nextMessageID(), "MessageID"))
 	bindRequest := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 	bindRequest.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	packet.AppendChild(bindRequest)
-
 	// Send packet and test response
 	msgCtx, err := conn.SendMessage(packet)
 	if err != nil {
 		t.Fatalf("error sending message: %v", err)
 	}
 	defer conn.FinishMessage(msgCtx)
-
 	packetResponse, ok := <-msgCtx.responses
 	if !ok {
 		t.Fatalf("no PacketResponse in response channel")
@@ -61,12 +58,11 @@ func TestUnresponsiveConnection(t *testing.T) {
 // TestFinishMessage tests that we do not enter deadlock when a goroutine makes
 // a request but does not handle all responses from the server.
 func TestFinishMessage(t *testing.T) {
+	t.Parallel()
 	ptc := newPacketTranslatorConn()
 	defer ptc.Close()
-
 	conn := NewConn(ptc, false)
 	conn.Start()
-
 	// Test sending 5 different requests in series. Ensure that we can
 	// get a response packet from the underlying connection and also
 	// ensure that we can gracefully ignore unhandled responses.
@@ -75,12 +71,10 @@ func TestFinishMessage(t *testing.T) {
 		// Create a message and make sure we can receive responses.
 		msgCtx := testSendRequest(t, ptc, conn)
 		testReceiveResponse(t, ptc, msgCtx)
-
 		// Send a few unhandled responses and finish the message.
 		testSendUnhandledResponsesAndFinish(t, ptc, conn, msgCtx, 5)
 		t.Logf("serial request %d done", i)
 	}
-
 	// Test sending 5 different requests in parallel.
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
@@ -91,14 +85,12 @@ func TestFinishMessage(t *testing.T) {
 			// Create a message and make sure we can receive responses.
 			msgCtx := testSendRequest(t, ptc, conn)
 			testReceiveResponse(t, ptc, msgCtx)
-
 			// Send a few unhandled responses and finish the message.
 			testSendUnhandledResponsesAndFinish(t, ptc, conn, msgCtx, 5)
 			t.Logf("parallel request %d done", i)
 		}(i)
 	}
 	wg.Wait()
-
 	// We cannot run Close() in a defer because t.FailNow() will run it and
 	// it will block if the processMessage Loop is in a deadlock.
 	conn.Close()
@@ -109,19 +101,15 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, conn *Conn) (msgCt
 	runWithTimeout(t, time.Second, func() {
 		msgID = conn.nextMessageID()
 	})
-
 	requestPacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	requestPacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgID, "MessageID"))
-
 	var err error
-
 	runWithTimeout(t, time.Second, func() {
 		msgCtx, err = conn.SendMessage(requestPacket)
 		if err != nil {
 			t.Fatalf("unable to send request message: %s", err)
 		}
 	})
-
 	// We should now be able to get this request packet out from the other
 	// side.
 	runWithTimeout(t, time.Second, func() {
@@ -129,7 +117,6 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, conn *Conn) (msgCt
 			t.Fatalf("unable to receive request packet: %s", err)
 		}
 	})
-
 	return msgCtx
 }
 
@@ -137,13 +124,11 @@ func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *Messag
 	// Send a mock response packet.
 	responsePacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 	responsePacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
-
 	runWithTimeout(t, time.Second, func() {
 		if err := ptc.SendResponse(responsePacket); err != nil {
 			t.Fatalf("unable to send response packet: %s", err)
 		}
 	})
-
 	// We should be able to receive the packet from the connection.
 	runWithTimeout(t, time.Second, func() {
 		if _, ok := <-msgCtx.responses; !ok {
@@ -156,7 +141,6 @@ func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn
 	// Send a mock response packet.
 	responsePacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 	responsePacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
-
 	// Send extra responses but do not attempt to receive them on the
 	// client side.
 	for i := 0; i < numResponses; i++ {
@@ -166,7 +150,6 @@ func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn
 			}
 		})
 	}
-
 	// Finally, attempt to finish this message.
 	runWithTimeout(t, time.Second, func() {
 		conn.FinishMessage(msgCtx)
@@ -179,7 +162,6 @@ func runWithTimeout(t *testing.T, timeout time.Duration, f func()) {
 		f()
 		close(done)
 	}()
-
 	select {
 	case <-done: // Success!
 	case <-time.After(timeout):
@@ -199,14 +181,12 @@ func runWithTimeout(t *testing.T, timeout time.Duration, f func()) {
 // can simulate an LDAP server receiving a request from a client by calling the
 // ReceiveRequest() method which returns a ber-encoded LDAP request packet.
 type packetTranslatorConn struct {
-	lock     sync.Mutex
-	isClosed bool
-
+	lock         sync.Mutex
+	isClosed     bool
 	responseCond sync.Cond
 	requestCond  sync.Cond
-
-	responseBuf bytes.Buffer
-	requestBuf  bytes.Buffer
+	responseBuf  bytes.Buffer
+	requestBuf   bytes.Buffer
 }
 
 var errPacketTranslatorConnClosed = errors.New("connection closed")
@@ -215,7 +195,6 @@ func newPacketTranslatorConn() *packetTranslatorConn {
 	conn := &packetTranslatorConn{}
 	conn.responseCond = sync.Cond{L: &conn.lock}
 	conn.requestCond = sync.Cond{L: &conn.lock}
-
 	return conn
 }
 
@@ -225,7 +204,6 @@ func newPacketTranslatorConn() *packetTranslatorConn {
 func (c *packetTranslatorConn) Read(b []byte) (n int, err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	for !c.isClosed {
 		// Attempt to read data from the response buffer. If it fails
 		// with an EOF, wait and try again.
@@ -233,10 +211,8 @@ func (c *packetTranslatorConn) Read(b []byte) (n int, err error) {
 		if err != io.EOF {
 			return n, err
 		}
-
 		c.responseCond.Wait()
 	}
-
 	return 0, errPacketTranslatorConnClosed
 }
 
@@ -245,17 +221,13 @@ func (c *packetTranslatorConn) Read(b []byte) (n int, err error) {
 func (c *packetTranslatorConn) SendResponse(packet *ber.Packet) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	if c.isClosed {
 		return errPacketTranslatorConnClosed
 	}
-
 	// Signal any goroutine waiting to read a response.
 	defer c.responseCond.Broadcast()
-
 	// Writes to the buffer should always succeed.
 	c.responseBuf.Write(packet.Bytes())
-
 	return nil
 }
 
@@ -263,14 +235,11 @@ func (c *packetTranslatorConn) SendResponse(packet *ber.Packet) error {
 func (c *packetTranslatorConn) Write(b []byte) (n int, err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	if c.isClosed {
 		return 0, errPacketTranslatorConnClosed
 	}
-
 	// Signal any goroutine waiting to read a request.
 	defer c.requestCond.Broadcast()
-
 	// Writes to the buffer should always succeed.
 	return c.requestBuf.Write(b)
 }
@@ -281,7 +250,6 @@ func (c *packetTranslatorConn) Write(b []byte) (n int, err error) {
 func (c *packetTranslatorConn) ReceiveRequest() (*ber.Packet, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	for !c.isClosed {
 		// Attempt to parse a request packet from the request buffer.
 		// If it fails with an unexpected EOF, wait and try again.
@@ -299,7 +267,6 @@ func (c *packetTranslatorConn) ReceiveRequest() (*ber.Packet, error) {
 			return nil, err
 		}
 	}
-
 	return nil, errPacketTranslatorConnClosed
 }
 
@@ -307,11 +274,9 @@ func (c *packetTranslatorConn) ReceiveRequest() (*ber.Packet, error) {
 func (c *packetTranslatorConn) Close() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	c.isClosed = true
 	c.responseCond.Broadcast()
 	c.requestCond.Broadcast()
-
 	return nil
 }
 

@@ -11,7 +11,6 @@ func ExampleConn_ModifyDN_renameNoMove() {
 		log.Fatalf("Failed to connect: %s\n", err)
 	}
 	defer conn.Close()
-
 	_, err = conn.SimpleBind(&SimpleBindRequest{
 		Username: "uid=someone,ou=people,dc=example,dc=org",
 		Password: "MySecretPass",
@@ -33,7 +32,6 @@ func ExampleConn_ModifyDN_renameAndMove() {
 		log.Fatalf("Failed to connect: %s\n", err)
 	}
 	defer conn.Close()
-
 	_, err = conn.SimpleBind(&SimpleBindRequest{
 		Username: "uid=someone,ou=people,dc=example,dc=org",
 		Password: "MySecretPass",
@@ -44,7 +42,6 @@ func ExampleConn_ModifyDN_renameAndMove() {
 	// rename to uid=new,ou=people,dc=example,dc=org and move to ou=users,dc=example,dc=org ->
 	// uid=new,ou=users,dc=example,dc=org
 	req := NewModifyDNRequest("uid=user,ou=people,dc=example,dc=org", "uid=new", true, "ou=users,dc=example,dc=org")
-
 	if err = conn.ModifyDN(req); err != nil {
 		log.Fatalf("Failed to call ModifyDN(): %s\n", err)
 	}
@@ -57,7 +54,6 @@ func ExampleConn_ModifyDN_moveOnly() {
 		log.Fatalf("Failed to connect: %s\n", err)
 	}
 	defer conn.Close()
-
 	_, err = conn.SimpleBind(&SimpleBindRequest{
 		Username: "uid=someone,ou=people,dc=example,dc=org",
 		Password: "MySecretPass",

@@ -6,7 +6,8 @@ import (
 )
 
 func TestSuccessfulDNParsing(t *testing.T) {
-	testcases := map[string]DN{
+	t.Parallel()
+	tests := map[string]DN{
 		"": {[]*RelativeDN{}},
 		"cn=Jim\\2C \\22Hasse Hö\\22 Hansson!,dc=dummy,dc=com": {[]*RelativeDN{
 			{[]*AttributeTypeAndValue{{"cn", "Jim, \"Hasse Hö\" Hansson!"}}},
@@ -60,17 +61,16 @@ func TestSuccessfulDNParsing(t *testing.T) {
 			}},
 		}},
 	}
-
-	for test, answer := range testcases {
-		dn, err := ParseDN(test)
+	for i, test := range tests {
+		dn, err := ParseDN(i)
 		if err != nil {
 			t.Errorf(err.Error())
 			continue
 		}
-		if !reflect.DeepEqual(dn, &answer) {
-			t.Errorf("Parsed DN %s is not equal to the expected structure", test)
+		if !reflect.DeepEqual(dn, &test) {
+			t.Errorf("Parsed DN %s is not equal to the expected structure", i)
 			t.Logf("Expected:")
-			for _, rdn := range answer.RDNs {
+			for _, rdn := range test.RDNs {
 				for _, attribs := range rdn.Attributes {
 					t.Logf("#%v\n", attribs)
 				}
@@ -86,7 +86,8 @@ func TestSuccessfulDNParsing(t *testing.T) {
 }
 
 func TestErrorDNParsing(t *testing.T) {
-	testcases := map[string]string{
+	t.Parallel()
+	tests := map[string]string{
 		"*":                       "DN ended with incomplete type, value pair",
 		"cn=Jim\\0Test":           "failed to decode escaped character: encoding/hex: invalid byte: U+0054 'T'",
 		"cn=Jim\\0":               "got corrupted escaped character",
@@ -95,19 +96,19 @@ func TestErrorDNParsing(t *testing.T) {
 		"test,DC=example,DC=com":  "incomplete type, value pair",
 		"=test,DC=example,DC=com": "incomplete type, value pair",
 	}
-
-	for test, answer := range testcases {
-		_, err := ParseDN(test)
+	for i, test := range tests {
+		_, err := ParseDN(i)
 		if err == nil {
-			t.Errorf("Expected %s to fail parsing but succeeded\n", test)
-		} else if err.Error() != answer {
-			t.Errorf("Unexpected error on %s:\n%s\nvs.\n%s\n", test, answer, err.Error())
+			t.Errorf("Expected %s to fail parsing but succeeded\n", i)
+		} else if err.Error() != test {
+			t.Errorf("Unexpected error on %s:\n%s\nvs.\n%s\n", i, test, err.Error())
 		}
 	}
 }
 
 func TestDNEqual(t *testing.T) {
-	testcases := []struct {
+	t.Parallel()
+	tests := []struct {
 		A     string
 		B     string
 		Equal bool
@@ -116,32 +117,25 @@ func TestDNEqual(t *testing.T) {
 		{"", "", true},
 		{"o=A", "o=A", true},
 		{"o=A", "o=B", false},
-
 		{"o=A,o=B", "o=A,o=B", true},
 		{"o=A,o=B", "o=A,o=C", false},
-
 		{"o=A+o=B", "o=A+o=B", true},
 		{"o=A+o=B", "o=A+o=C", false},
-
 		// Case mismatch in type is ignored
 		{"o=A", "O=A", true},
 		{"o=A,o=B", "o=A,O=B", true},
 		{"o=A+o=B", "o=A+O=B", true},
-
 		// Case mismatch in value is significant
 		{"o=a", "O=A", false},
 		{"o=a,o=B", "o=A,O=B", false},
 		{"o=a+o=B", "o=A+O=B", false},
-
 		// Multi-valued RDN order mismatch is ignored
 		{"o=A+o=B", "O=B+o=A", true},
 		// Number of RDN attributes is significant
 		{"o=A+o=B", "O=B+o=A+O=B", false},
-
 		// Missing values are significant
 		{"o=A+o=B", "O=B+o=A+O=C", false}, // missing values matter
 		{"o=A+o=B+o=C", "O=B+o=A", false}, // missing values matter
-
 		// Whitespace tests
 		// Matching
 		{
@@ -162,31 +156,31 @@ func TestDNEqual(t *testing.T) {
 			false,
 		},
 	}
-
-	for i, tc := range testcases {
-		a, err := ParseDN(tc.A)
+	for i, test := range tests {
+		a, err := ParseDN(test.A)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
 		}
-		b, err := ParseDN(tc.B)
+		b, err := ParseDN(test.B)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
 		}
-		if expected, actual := tc.Equal, a.Equal(b); expected != actual {
-			t.Errorf("%d: when comparing '%s' and '%s' expected %v, got %v", i, tc.A, tc.B, expected, actual)
+		if expected, actual := test.Equal, a.Equal(b); expected != actual {
+			t.Errorf("%d: when comparing '%s' and '%s' expected %v, got %v", i, test.A, test.B, expected, actual)
 			continue
 		}
-		if expected, actual := tc.Equal, b.Equal(a); expected != actual {
-			t.Errorf("%d: when comparing '%s' and '%s' expected %v, got %v", i, tc.A, tc.B, expected, actual)
+		if expected, actual := test.Equal, b.Equal(a); expected != actual {
+			t.Errorf("%d: when comparing '%s' and '%s' expected %v, got %v", i, test.A, test.B, expected, actual)
 			continue
 		}
 	}
 }
 
 func TestDNAncestor(t *testing.T) {
-	testcases := []struct {
+	t.Parallel()
+	tests := []struct {
 		A        string
 		B        string
 		Ancestor bool
@@ -196,27 +190,24 @@ func TestDNAncestor(t *testing.T) {
 		{"o=A", "o=A", false},
 		{"o=A,o=B", "o=A,o=B", false},
 		{"o=A+o=B", "o=A+o=B", false},
-
 		// Mismatch
 		{"ou=C,ou=B,o=A", "ou=E,ou=D,ou=B,o=A", false},
-
 		// Descendant
 		{"ou=C,ou=B,o=A", "ou=E,ou=C,ou=B,o=A", true},
 	}
-
-	for i, tc := range testcases {
-		a, err := ParseDN(tc.A)
+	for i, test := range tests {
+		a, err := ParseDN(test.A)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
 		}
-		b, err := ParseDN(tc.B)
+		b, err := ParseDN(test.B)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
 		}
-		if expected, actual := tc.Ancestor, a.AncestorOf(b); expected != actual {
-			t.Errorf("%d: when comparing '%s' and '%s' expected %v, got %v", i, tc.A, tc.B, expected, actual)
+		if expected, actual := test.Ancestor, a.AncestorOf(b); expected != actual {
+			t.Errorf("%d: when comparing '%s' and '%s' expected %v, got %v", i, test.A, test.B, expected, actual)
 			continue
 		}
 	}

@@ -7,6 +7,7 @@ import (
 
 // TestNewEntry tests that repeated calls to NewEntry return the same value with the same input
 func TestNewEntry(t *testing.T) {
+	t.Parallel()
 	dn := "testDN"
 	attributes := map[string][]string{
 		"alpha":   {"value"},
@@ -16,7 +17,6 @@ func TestNewEntry(t *testing.T) {
 		"epsilon": {"value"},
 	}
 	executedEntry := NewEntry(dn, attributes)
-
 	iteration := 0
 	for {
 		if iteration == 100 {
@@ -31,6 +31,7 @@ func TestNewEntry(t *testing.T) {
 }
 
 func TestGetAttributeValue(t *testing.T) {
+	t.Parallel()
 	dn := "testDN"
 	attributes := map[string][]string{
 		"Alpha":   {"value"},
@@ -43,7 +44,6 @@ func TestGetAttributeValue(t *testing.T) {
 	if entry.GetAttributeValue("Alpha") != "value" {
 		t.Errorf("failed to get attribute in original case")
 	}
-
 	if entry.GetEqualFoldAttributeValue("alpha") != "value" {
 		t.Errorf("failed to get attribute in changed case")
 	}
