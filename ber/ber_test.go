@@ -1,4 +1,4 @@
-package asn1ber
+package ber
 
 import (
 	"bytes"
@@ -198,7 +198,7 @@ func TestParse(t *testing.T) {
 			t.Errorf("unable to load %s: %v", test.f, err)
 			continue
 		}
-		_, p, err := Parse(bytes.NewReader(buf), math.MaxInt32)
+		_, p, err := Parse(bytes.NewReader(buf))
 		switch {
 		case err != nil && test.err == "":
 			t.Errorf("%s: unexpected error: %v", test.f, err)

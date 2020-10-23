@@ -1,4 +1,4 @@
-package asn1ber
+package ber
 
 import (
 	"bytes"

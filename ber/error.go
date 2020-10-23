@@ -1,4 +1,4 @@
-package asn1ber
+package ber
 
 // Error is a asn1 ber error.
 type Error string

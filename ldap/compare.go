@@ -1,62 +1,29 @@
 package ldap
 
 import (
-	"fmt"
-
-	ber "github.com/go-asn1-ber/asn1-ber"
+	"context"
+	"errors"
 )
 
-// CompareRequest represents an LDAP CompareRequest operation.
-type CompareRequest struct {
-	DN        string
-	Attribute string
-	Value     string
+type CompareHandler interface {
+	Compare(context.Context, *CompareRequest) (*CompareResponse, error)
 }
 
-func (req *CompareRequest) AppendTo(envelope *ber.Packet) error {
-	pkt := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareRequest, nil, "Compare Request")
-	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
+type CompareHandlerFunc func(context.Context, *CompareRequest) (*CompareResponse, error)
 
-	ava := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "AttributeValueAssertion")
-	ava.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Attribute, "AttributeDesc"))
-	ava.AppendChild(ber.Encode(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Value, "AssertionValue"))
-
-	pkt.AppendChild(ava)
-
-	envelope.AppendChild(pkt)
-
-	return nil
+func (f CompareHandlerFunc) Compare(ctx context.Context, req *CompareRequest) (*CompareResponse, error) {
+	return f(ctx, req)
 }
 
-// Compare checks to see if the attribute of the dn matches value. Returns true if it does otherwise
-// false with any error that occurs if any.
-func (l *Conn) Compare(dn, attribute, value string) (bool, error) {
-	msgCtx, err := l.DoRequest(&CompareRequest{
-		DN:        dn,
-		Attribute: attribute,
-		Value:     value,
-	})
-	if err != nil {
-		return false, err
-	}
-	defer l.FinishMessage(msgCtx)
+type CompareRequest struct{}
 
-	packet, err := l.ReadPacket(msgCtx)
-	if err != nil {
-		return false, err
-	}
+func NewCompareRequest(req *Request) (*CompareRequest, error) {
+	return &CompareRequest{}, nil
+}
 
-	if packet.Children[1].Tag == ApplicationCompareResponse {
-		err := GetLDAPError(packet)
+type CompareResponse struct{}
 
-		switch {
-		case IsErrorWithCode(err, LDAPResultCompareTrue):
-			return true, nil
-		case IsErrorWithCode(err, LDAPResultCompareFalse):
-			return false, nil
-		default:
-			return false, err
-		}
-	}
-	return false, fmt.Errorf("unexpected Response: %d", packet.Children[1].Tag)
+// Encode satisfies the Encoder interface.
+func (res *CompareResponse) Encode(_ context.Context, w ResponseWriter) error {
+	return w.WriteError(ApplicationCompareResponse, errors.New("not implemented"))
 }

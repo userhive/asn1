@@ -1,4 +1,4 @@
-package asn1ber
+package ber
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -62,7 +63,7 @@ func ParseIdentifier(r io.Reader) (int, Class, Type, Tag, error) {
 		return n, 0, 0, 0, err
 	}
 	class, typ, tag := Class(b)&ClassPrivate, Type(b)&TypeConstructed, Tag(0)
-	if tag := Tag(b) & TagBitmask; tag != tagHigh {
+	if tag := Tag(b) & tagHigh; tag != tagHigh {
 		// short-form tag
 		return n, class, typ, tag, nil
 	}
@@ -142,6 +143,14 @@ func ParseCount(r io.Reader) (int, int, error) {
 		return n, 0, ErrInvalidLength
 	}
 	return n, l, nil
+}
+
+func ParseBoolean(buf []byte) (bool, error) {
+	b, err := ParseInt64(buf)
+	if err != nil {
+		return false, err
+	}
+	return b != 0, nil
 }
 
 func ParseReal(buf []byte) (float64, error) {
@@ -258,6 +267,39 @@ func ParseSpecialFloat(buf []byte) (float64, error) {
 		return math.Copysign(0, -1), nil
 	}
 	return 0.0, ErrInvalidSpecialValueEncoding
+}
+
+func ParseUTF8String(buf []byte) (string, error) {
+	if !utf8.Valid(buf) {
+		return "", ErrInvalidUTF8String
+	}
+	return string(buf), nil
+}
+
+func ParseIA5String(buf []byte) (string, error) {
+	for _, c := range buf {
+		if c >= 0x7F {
+			return "", ErrInvalidIA5String
+		}
+	}
+	return string(buf), nil
+}
+
+func ParsePrintableString(buf []byte) (string, error) {
+	for _, c := range buf {
+		switch {
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+		default:
+			switch c {
+			case '\'', '(', ')', '+', ',', '-', '.', '=', '/', ':', '?', ' ':
+			default:
+				return "", ErrInvalidPrintableString
+			}
+		}
+	}
+	return string(buf), nil
 }
 
 // ParseGeneralizedTime parses a string value and if it conforms to

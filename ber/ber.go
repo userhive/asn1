@@ -1,5 +1,5 @@
-// Package asn1ber provides encoding and decoding for asn1 ber packets.
-package asn1ber
+// Package ber provides encoding and decoding for asn1 ber packets.
+package ber
 
 //go:generate stringer -type Tag -trimprefix Tag .
 //go:generate stringer -type Class -trimprefix Class .
@@ -12,12 +12,12 @@ import (
 	"math"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
-// Class is the ber packet class.
+// Class is the ber packet class enum.
 type Class uint8
 
+// Class values.
 const (
 	ClassUniversal   Class = 0   // 00xxxxxxb
 	ClassApplication Class = 64  // 01xxxxxxb
@@ -25,17 +25,19 @@ const (
 	ClassPrivate     Class = 192 // 11xxxxxxb
 )
 
-// Type is the ber packet type.
+// Type is the ber packet type enum.
 type Type uint8
 
+// Type values.
 const (
 	TypePrimitive   Type = 0  // xx0xxxxxb
 	TypeConstructed Type = 32 // xx1xxxxxb
 )
 
-// Tag is the ber packet tag.
+// Tag is the ber packet tag enum.
 type Tag uint64
 
+// Tag values.
 const (
 	TagEOC              Tag = 0x00
 	TagBoolean          Tag = 0x01
@@ -66,7 +68,6 @@ const (
 	TagUniversalString  Tag = 0x1c
 	TagCharacterString  Tag = 0x1d
 	TagBMPString        Tag = 0x1e
-	TagBitmask          Tag = 0x1f // xxx11111b
 
 	// tagHigh indicates the start of a high-tag byte sequence.
 	tagHigh Tag = 0x1f // xxx11111b
@@ -92,8 +93,8 @@ type Packet struct {
 	Desc      string
 }
 
-// Parse reads a ber packet from r with max children.
-func Parse(r io.Reader, max int) (int, *Packet, error) {
+// ParseLimit reads a ber packet from r up to max bytes.
+func ParseLimit(r io.Reader, max int) (int, *Packet, error) {
 	n, class, typ, tag, count, err := ParseHeader(r)
 	if err != nil {
 		return n, nil, err
@@ -123,7 +124,7 @@ func Parse(r io.Reader, max int) (int, *Packet, error) {
 				}
 			}
 			// Read the next packet
-			nn, child, err := Parse(r, max)
+			nn, child, err := ParseLimit(r, max)
 			if err != nil {
 				return n, nil, err
 			}
@@ -152,10 +153,10 @@ func Parse(r io.Reader, max int) (int, *Packet, error) {
 	buf := make([]byte, count)
 	if count > 0 {
 		_, err := io.ReadFull(r, buf)
-		if err != nil {
-			if err == io.EOF {
-				return n, nil, io.ErrUnexpectedEOF
-			}
+		switch {
+		case err != nil && err == io.EOF:
+			return n, nil, io.ErrUnexpectedEOF
+		case err != nil:
 			return n, nil, err
 		}
 		n += count
@@ -166,15 +167,14 @@ func Parse(r io.Reader, max int) (int, *Packet, error) {
 		switch p.Tag {
 		case TagEOC:
 		case TagBoolean:
-			val, _ := ParseInt64(buf)
-			p.Value = val != 0
+			p.Value, err = ParseBoolean(buf)
 		case TagInteger:
 			p.Value, _ = ParseInt64(buf)
 		case TagBitString:
 		case TagOctetString:
-			// the actual string encoding is not known here
-			// (e.g. for LDAP content is already an UTF8-encoded
-			// string). Return the data without further processing
+			// the actual string encoding is not known here (e.g. for LDAP
+			// content is already an UTF8-encoded string). Return the data
+			// without modification
 			p.Value = string(buf)
 		case TagNULL:
 		case TagObjectIdentifier:
@@ -186,36 +186,17 @@ func Parse(r io.Reader, max int) (int, *Packet, error) {
 			p.Value, _ = ParseInt64(buf)
 		case TagEmbeddedPDV:
 		case TagUTF8String:
-			val := string(buf)
-			if !utf8.Valid([]byte(val)) {
-				err = ErrInvalidUTF8String
-			} else {
-				p.Value = val
-			}
+			p.Value, err = ParseUTF8String(buf)
 		case TagRelativeOID:
 		case TagSequence:
 		case TagSet:
 		case TagNumericString:
 		case TagPrintableString:
-			val := string(buf)
-			if !isPrintableString(val) {
-				err = ErrInvalidPrintableString
-			} else {
-				p.Value = val
-			}
+			p.Value, err = ParsePrintableString(buf)
 		case TagT61String:
 		case TagVideotexString:
 		case TagIA5String:
-			val := string(buf)
-			for _, c := range val {
-				if c >= 0x7F {
-					err = ErrInvalidIA5String
-					break
-				}
-			}
-			if err == nil {
-				p.Value = val
-			}
+			p.Value, err = ParseIA5String(buf)
 		case TagUTCTime:
 		case TagGeneralizedTime:
 			p.Value, err = ParseGeneralizedTime(buf)
@@ -232,10 +213,15 @@ func Parse(r io.Reader, max int) (int, *Packet, error) {
 	return n, p, err
 }
 
+// Parse parses a ber packet from r.
+func Parse(r io.Reader) (int, *Packet, error) {
+	return ParseLimit(r, math.MaxInt32)
+}
+
 // ParseBytesLimit parses an ber packet from buf, limited to the max
 // number of child packets.
 func ParseBytesLimit(buf []byte, max int) (*Packet, error) {
-	_, p, err := Parse(bytes.NewReader(buf), max)
+	_, p, err := ParseLimit(bytes.NewReader(buf), max)
 	if err != nil {
 		return nil, err
 	}
@@ -263,32 +249,32 @@ func NewPacket(class Class, typ Type, tag Tag, value interface{}, desc string) *
 		case ClassUniversal:
 			switch tag {
 			case TagOctetString:
-				sv, ok := value.(string)
+				v, ok := value.(string)
 				if ok {
-					p.Data.Write([]byte(sv))
+					p.Data.Write([]byte(v))
 				}
 			case TagEnumerated:
-				bv, ok := value.([]byte)
+				v, ok := value.([]byte)
 				if ok {
-					p.Data.Write(bv)
+					p.Data.Write(v)
 				}
 			case TagEmbeddedPDV:
-				bv, ok := value.([]byte)
+				v, ok := value.([]byte)
 				if ok {
-					p.Data.Write(bv)
+					p.Data.Write(v)
 				}
 			}
 		case ClassContext:
 			switch tag {
 			case TagEnumerated:
-				bv, ok := value.([]byte)
+				v, ok := value.([]byte)
 				if ok {
-					p.Data.Write(bv)
+					p.Data.Write(v)
 				}
 			case TagEmbeddedPDV:
-				bv, ok := value.([]byte)
+				v, ok := value.([]byte)
 				if ok {
-					p.Data.Write(bv)
+					p.Data.Write(v)
 				}
 			}
 		}
@@ -296,38 +282,38 @@ func NewPacket(class Class, typ Type, tag Tag, value interface{}, desc string) *
 	return p
 }
 
-// NewSequence returns a new sequence packet.
-func NewSequence(description string) *Packet {
-	return NewPacket(ClassUniversal, TypeConstructed, TagSequence, nil, description)
+// NewSequence creates a new sequence packet.
+func NewSequence(desc string) *Packet {
+	return NewPacket(ClassUniversal, TypeConstructed, TagSequence, nil, desc)
 }
 
-// NewBoolean returns a new boolean packet.
-func NewBoolean(class Class, typ Type, tag Tag, value bool, description string) *Packet {
-	intValue := int64(0)
+// NewBoolean creates a new boolean packet.
+func NewBoolean(class Class, typ Type, tag Tag, value bool, desc string) *Packet {
+	i := int64(0)
 	if value {
-		intValue = 1
+		i = 1
 	}
-	p := NewPacket(class, typ, tag, nil, description)
+	p := NewPacket(class, typ, tag, nil, desc)
 	p.Value = value
-	p.Data.Write(EncodeInt64(intValue))
+	p.Data.Write(EncodeInt64(i))
 	return p
 }
 
-// NewLDAPBoolean returns a new RFC 4511-compliant (LDAP) boolean packet.
-func NewLDAPBoolean(class Class, typ Type, tag Tag, value bool, description string) *Packet {
-	intValue := int64(0)
+// NewLDAPBoolean creates a new RFC 4511-compliant (LDAP) boolean packet.
+func NewLDAPBoolean(class Class, typ Type, tag Tag, value bool, desc string) *Packet {
+	i := int64(0)
 	if value {
-		intValue = 255
+		i = 255
 	}
-	p := NewPacket(class, typ, tag, nil, description)
+	p := NewPacket(class, typ, tag, nil, desc)
 	p.Value = value
-	p.Data.Write(EncodeInt64(intValue))
+	p.Data.Write(EncodeInt64(i))
 	return p
 }
 
-// NewInteger returns a new integer packet.
-func NewInteger(class Class, typ Type, tag Tag, value interface{}, description string) *Packet {
-	p := NewPacket(class, typ, tag, nil, description)
+// NewInteger creates a new integer packet.
+func NewInteger(class Class, typ Type, tag Tag, value interface{}, desc string) *Packet {
+	p := NewPacket(class, typ, tag, nil, desc)
 	p.Value = value
 	switch v := value.(type) {
 	case int:
@@ -358,17 +344,17 @@ func NewInteger(class Class, typ Type, tag Tag, value interface{}, description s
 	return p
 }
 
-// NewString returns a new string packet.
-func NewString(class Class, typ Type, tag Tag, value, description string) *Packet {
-	p := NewPacket(class, typ, tag, nil, description)
+// NewString creates a new string packet.
+func NewString(class Class, typ Type, tag Tag, value, desc string) *Packet {
+	p := NewPacket(class, typ, tag, nil, desc)
 	p.Value = value
 	p.Data.Write([]byte(value))
 	return p
 }
 
-// NewGeneralizedTime returns a new generalized time packet.
-func NewGeneralizedTime(class Class, typ Type, tag Tag, value time.Time, description string) *Packet {
-	p := NewPacket(class, typ, tag, nil, description)
+// NewGeneralizedTime creates a new generalized time packet.
+func NewGeneralizedTime(class Class, typ Type, tag Tag, value time.Time, desc string) *Packet {
+	p := NewPacket(class, typ, tag, nil, desc)
 	var s string
 	if value.Nanosecond() != 0 {
 		s = value.Format(`20060102150405.000000000Z`)
@@ -380,9 +366,9 @@ func NewGeneralizedTime(class Class, typ Type, tag Tag, value time.Time, descrip
 	return p
 }
 
-// NewReal returns a new real packet.
-func NewReal(class Class, typ Type, tag Tag, value interface{}, description string) *Packet {
-	p := NewPacket(class, typ, tag, nil, description)
+// NewReal creates a new real packet.
+func NewReal(class Class, typ Type, tag Tag, value interface{}, desc string) *Packet {
+	p := NewPacket(class, typ, tag, nil, desc)
 	switch v := value.(type) {
 	case float64:
 		p.Data.Write(EncodeFloat64(v))
@@ -451,21 +437,4 @@ func IsEOC(p *Packet) bool {
 		p.Tag == TagEOC &&
 		len(p.ByteValue) == 0 &&
 		len(p.Children) == 0
-}
-
-func isPrintableString(val string) bool {
-	for _, c := range val {
-		switch {
-		case c >= 'a' && c <= 'z':
-		case c >= 'A' && c <= 'Z':
-		case c >= '0' && c <= '9':
-		default:
-			switch c {
-			case '\'', '(', ')', '+', ',', '-', '.', '=', '/', ':', '?', ' ':
-			default:
-				return false
-			}
-		}
-	}
-	return true
 }
