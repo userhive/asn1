@@ -18,7 +18,6 @@ const (
 	ControlTypeVChuPasswordWarning = "2.16.840.1.113730.3.4.5"
 	// ControlTypeManageDsaIT - https://tools.ietf.org/html/rfc3296
 	ControlTypeManageDsaIT = "2.16.840.1.113730.3.4.2"
-
 	// ControlTypeMicrosoftNotification - https://msdn.microsoft.com/en-us/library/aa366983(v=vs.85).aspx
 	ControlTypeMicrosoftNotification = "1.2.840.113556.1.4.528"
 	// ControlTypeMicrosoftShowDeleted - https://msdn.microsoft.com/en-us/library/aa366989(v=vs.85).aspx
@@ -91,7 +90,6 @@ func (c *ControlPaging) GetControlType() string {
 func (c *ControlPaging) Encode() *ber.Packet {
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
 	packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, ControlTypePaging, "Control Type ("+ControlTypeMap[ControlTypePaging]+")"))
-
 	p2 := ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, nil, "Control Value (Paging)")
 	seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Search Control Value")
 	seq.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(c.PagingSize), "Paging Size"))
@@ -100,7 +98,6 @@ func (c *ControlPaging) Encode() *ber.Packet {
 	cookie.Data.Write(c.Cookie)
 	seq.AppendChild(cookie)
 	p2.AppendChild(seq)
-
 	packet.AppendChild(p2)
 	return packet
 }
@@ -142,7 +139,6 @@ func (c *ControlBeheraPasswordPolicy) GetControlType() string {
 func (c *ControlBeheraPasswordPolicy) Encode() *ber.Packet {
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
 	packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, ControlTypeBeheraPasswordPolicy, "Control Type ("+ControlTypeMap[ControlTypeBeheraPasswordPolicy]+")"))
-
 	return packet
 }
 
@@ -259,7 +255,6 @@ func (c *ControlMicrosoftNotification) GetControlType() string {
 func (c *ControlMicrosoftNotification) Encode() *ber.Packet {
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
 	packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, ControlTypeMicrosoftNotification, "Control Type ("+ControlTypeMap[ControlTypeMicrosoftNotification]+")"))
-
 	return packet
 }
 
@@ -288,7 +283,6 @@ func (c *ControlMicrosoftShowDeleted) GetControlType() string {
 func (c *ControlMicrosoftShowDeleted) Encode() *ber.Packet {
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
 	packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, ControlTypeMicrosoftShowDeleted, "Control Type ("+ControlTypeMap[ControlTypeMicrosoftShowDeleted]+")"))
-
 	return packet
 }
 
@@ -322,21 +316,17 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 		Criticality = false
 		value       *ber.Packet
 	)
-
 	switch len(packet.Children) {
 	case 0:
 		// at least one child is required for control type
 		return nil, fmt.Errorf("at least one child is required for control type")
-
 	case 1:
 		// just type, no criticality or value
 		packet.Children[0].Desc = "Control Type (" + ControlTypeMap[ControlType] + ")"
 		ControlType = packet.Children[0].Value.(string)
-
 	case 2:
 		packet.Children[0].Desc = "Control Type (" + ControlTypeMap[ControlType] + ")"
 		ControlType = packet.Children[0].Value.(string)
-
 		// Children[1] could be criticality or value (both are optional)
 		// duck-type on whether this is a boolean
 		if _, ok := packet.Children[1].Value.(bool); ok {
@@ -346,22 +336,17 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 			packet.Children[1].Desc = "Control Value"
 			value = packet.Children[1]
 		}
-
 	case 3:
 		packet.Children[0].Desc = "Control Type (" + ControlTypeMap[ControlType] + ")"
 		ControlType = packet.Children[0].Value.(string)
-
 		packet.Children[1].Desc = "Criticality"
 		Criticality = packet.Children[1].Value.(bool)
-
 		packet.Children[2].Desc = "Control Value"
 		value = packet.Children[2]
-
 	default:
 		// more than 3 children is invalid
 		return nil, fmt.Errorf("more than 3 children is invalid for controls")
 	}
-
 	switch ControlType {
 	case ControlTypeManageDsaIT:
 		return NewControlManageDsaIT(Criticality), nil
@@ -397,9 +382,7 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 			value.Value = nil
 			value.AppendChild(valueChildren)
 		}
-
 		sequence := value.Children[0]
-
 		for _, child := range sequence.Children {
 			if child.Tag == 0 {
 				// Warning
@@ -442,7 +425,6 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 		}
 		c.Expire = expire
 		value.Value = c.Expire
-
 		return c, nil
 	case ControlTypeMicrosoftNotification:
 		return NewControlMicrosoftNotification(), nil

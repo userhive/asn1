@@ -33,7 +33,6 @@ type PasswordModifyResult struct {
 func (req *PasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedRequest.Tag(), nil, "Password Modify Extended Operation")
 	pkt.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, passwordModifyOID, "Extended Request Name: Password Modify OID"))
-
 	extendedRequestValue := ber.NewPacket(ber.ClassContext, ber.TypePrimitive, 1, nil, "Extended Request Value: Password Modify Request")
 	passwordModifyRequestValue := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Password Modify Request")
 	if req.UserIdentity != "" {
@@ -46,11 +45,8 @@ func (req *PasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
 		passwordModifyRequestValue.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 2, req.NewPassword, "New Password"))
 	}
 	extendedRequestValue.AppendChild(passwordModifyRequestValue)
-
 	pkt.AppendChild(extendedRequestValue)
-
 	envelope.AppendChild(pkt)
-
 	return nil
 }
 
@@ -86,14 +82,11 @@ func (l *Conn) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*Pa
 		return nil, err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}
-
 	result := &PasswordModifyResult{}
-
 	if packet.Children[1].Tag == ApplicationExtendedResponse.Tag() {
 		err := GetLDAPError(packet)
 		if err != nil {
@@ -109,7 +102,6 @@ func (l *Conn) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*Pa
 	} else {
 		return nil, NewError(ErrorUnexpectedResponse, fmt.Errorf("unexpected Response: %d", packet.Children[1].Tag))
 	}
-
 	extendedResponse := packet.Children[1]
 	for _, child := range extendedResponse.Children {
 		if child.Tag == 11 {
@@ -124,6 +116,5 @@ func (l *Conn) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*Pa
 			}
 		}
 	}
-
 	return result, nil
 }

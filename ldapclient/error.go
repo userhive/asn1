@@ -81,14 +81,13 @@ const (
 	LDAPResultAssertionFailed                    = 122
 	LDAPResultAuthorizationDenied                = 123
 	LDAPResultSyncRefreshRequired                = 4096
-
-	ErrorNetwork            = 200
-	ErrorFilterCompile      = 201
-	ErrorFilterDecompile    = 202
-	ErrorDebugging          = 203
-	ErrorUnexpectedMessage  = 204
-	ErrorUnexpectedResponse = 205
-	ErrorEmptyPassword      = 206
+	ErrorNetwork                                 = 200
+	ErrorFilterCompile                           = 201
+	ErrorFilterDecompile                         = 202
+	ErrorDebugging                               = 203
+	ErrorUnexpectedMessage                       = 204
+	ErrorUnexpectedResponse                      = 205
+	ErrorEmptyPassword                           = 206
 )
 
 // LDAPResultCodeMap contains string descriptions for LDAP error codes
@@ -166,14 +165,13 @@ var LDAPResultCodeMap = map[uint16]string{
 	LDAPResultIntermediateResponse:               "Intermediate Response",
 	LDAPResultUnknownType:                        "Unknown Type",
 	LDAPResultAuthorizationDenied:                "Authorization Denied",
-
-	ErrorNetwork:            "Network Error",
-	ErrorFilterCompile:      "Filter Compile Error",
-	ErrorFilterDecompile:    "Filter Decompile Error",
-	ErrorDebugging:          "Debugging Error",
-	ErrorUnexpectedMessage:  "Unexpected Message",
-	ErrorUnexpectedResponse: "Unexpected Response",
-	ErrorEmptyPassword:      "Empty password not allowed by the client",
+	ErrorNetwork:                                 "Network Error",
+	ErrorFilterCompile:                           "Filter Compile Error",
+	ErrorFilterDecompile:                         "Filter Decompile Error",
+	ErrorDebugging:                               "Debugging Error",
+	ErrorUnexpectedMessage:                       "Unexpected Message",
+	ErrorUnexpectedResponse:                      "Unexpected Response",
+	ErrorEmptyPassword:                           "Empty password not allowed by the client",
 }
 
 // Error holds LDAP error information
@@ -199,7 +197,6 @@ func GetLDAPError(packet *ber.Packet) error {
 	if packet == nil {
 		return &Error{ResultCode: ErrorUnexpectedResponse, Err: fmt.Errorf("Empty packet")}
 	}
-
 	if len(packet.Children) >= 2 {
 		response := packet.Children[1]
 		if response == nil {
@@ -218,7 +215,6 @@ func GetLDAPError(packet *ber.Packet) error {
 			}
 		}
 	}
-
 	return &Error{ResultCode: ErrorNetwork, Err: fmt.Errorf("Invalid packet format"), Packet: packet}
 }
 
@@ -232,18 +228,15 @@ func IsErrorAnyOf(err error, codes ...uint16) bool {
 	if err == nil {
 		return false
 	}
-
 	serverError, ok := err.(*Error)
 	if !ok {
 		return false
 	}
-
 	for _, code := range codes {
 		if serverError.ResultCode == code {
 			return true
 		}
 	}
-
 	return false
 }
 

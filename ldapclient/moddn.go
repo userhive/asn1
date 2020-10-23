@@ -48,9 +48,7 @@ func (req *ModifyDNRequest) AppendTo(envelope *ber.Packet) error {
 	if req.NewSuperior != "" {
 		pkt.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, req.NewSuperior, "New Superior"))
 	}
-
 	envelope.AppendChild(pkt)
-
 	return nil
 }
 
@@ -62,12 +60,10 @@ func (l *Conn) ModifyDN(m *ModifyDNRequest) error {
 		return err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
-
 	if packet.Children[1].Tag == ApplicationModifyDNResponse.Tag() {
 		err := GetLDAPError(packet)
 		if err != nil {

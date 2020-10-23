@@ -16,15 +16,11 @@ type CompareRequest struct {
 func (req *CompareRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareRequest.Tag(), nil, "Compare Request")
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
-
 	ava := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "AttributeValueAssertion")
 	ava.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Attribute, "AttributeDesc"))
 	ava.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Value, "AssertionValue"))
-
 	pkt.AppendChild(ava)
-
 	envelope.AppendChild(pkt)
-
 	return nil
 }
 
@@ -40,15 +36,12 @@ func (l *Conn) Compare(dn, attribute, value string) (bool, error) {
 		return false, err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return false, err
 	}
-
 	if packet.Children[1].Tag == ApplicationCompareResponse.Tag() {
 		err := GetLDAPError(packet)
-
 		switch {
 		case IsErrorWithCode(err, LDAPResultCompareTrue):
 			return true, nil

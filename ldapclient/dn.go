@@ -38,7 +38,6 @@ func ParseDN(str string) (*DN, error) {
 	buffer := bytes.Buffer{}
 	attribute := new(AttributeTypeAndValue)
 	escaping := false
-
 	unescapedTrailingSpaces := 0
 	stringFromBuffer := func() string {
 		s := buffer.String()
@@ -47,7 +46,6 @@ func ParseDN(str string) (*DN, error) {
 		unescapedTrailingSpaces = 0
 		return s
 	}
-
 	for i := 0; i < len(str); i++ {
 		char := str[i]
 		switch {
@@ -63,7 +61,6 @@ func ParseDN(str string) (*DN, error) {
 			if len(str) == i+1 {
 				return nil, errors.New("got corrupted escaped character")
 			}
-
 			dst := []byte{0}
 			n, err := enchex.Decode([]byte(dst), []byte(str[i:i+2]))
 			if err != nil {

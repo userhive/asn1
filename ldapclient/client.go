@@ -69,7 +69,6 @@ type messagePacket struct {
 	Packet    *ber.Packet
 	Context   *MessageContext
 }
-
 type SendMessageFlags uint
 
 const (
@@ -133,14 +132,12 @@ func (dc *DialContext) dial(u *url.URL) (net.Conn, error) {
 		}
 		return dc.d.Dial("unix", u.Path)
 	}
-
 	host, port, err := net.SplitHostPort(u.Host)
 	if err != nil {
 		// we assume that error is due to missing port
 		host = u.Host
 		port = ""
 	}
-
 	switch u.Scheme {
 	case "ldap":
 		if port == "" {
@@ -153,7 +150,6 @@ func (dc *DialContext) dial(u *url.URL) (net.Conn, error) {
 		}
 		return tls.DialWithDialer(dc.d, "tcp", net.JoinHostPort(host, port), dc.tc)
 	}
-
 	return nil, fmt.Errorf("Unknown scheme '%s'", u.Scheme)
 }
 
@@ -191,7 +187,6 @@ func DialURL(addr string, opts ...DialOpt) (*Conn, error) {
 	if err != nil {
 		return nil, NewError(ErrorNetwork, err)
 	}
-
 	var dc DialContext
 	for _, opt := range opts {
 		opt(&dc)
@@ -199,12 +194,10 @@ func DialURL(addr string, opts ...DialOpt) (*Conn, error) {
 	if dc.d == nil {
 		dc.d = &net.Dialer{Timeout: DefaultTimeout}
 	}
-
 	c, err := dc.dial(u)
 	if err != nil {
 		return nil, NewError(ErrorNetwork, err)
 	}
-
 	conn := NewConn(c, u.Scheme == "ldaps")
 	conn.Start()
 	return conn, nil
@@ -244,18 +237,15 @@ func (l *Conn) setClosing() bool {
 func (l *Conn) Close() {
 	l.messageMutex.Lock()
 	defer l.messageMutex.Unlock()
-
 	if l.setClosing() {
 		l.Debug.Printf("Sending quit message and waiting for confirmation")
 		l.chanMessage <- &messagePacket{Op: MessageQuit}
 		<-l.chanConfirm
 		close(l.chanMessage)
-
 		l.Debug.Printf("Closing network connection")
 		if err := l.conn.Close(); err != nil {
 			log.Println(err)
 		}
-
 		l.wgClose.Done()
 	}
 	l.wgClose.Wait()
@@ -281,22 +271,18 @@ func (l *Conn) StartTLS(config *tls.Config) error {
 	if l.isTLS {
 		return NewError(ErrorNetwork, errors.New("ldap: already encrypted"))
 	}
-
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, l.nextMessageID(), "MessageID"))
 	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedRequest.Tag(), nil, "Start TLS")
 	request.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, "1.3.6.1.4.1.1466.20037", "TLS Extended Command"))
 	packet.AppendChild(request)
 	l.Debug.PrintPacket(packet)
-
 	msgCtx, err := l.SendMessageWithFlags(packet, startTLS)
 	if err != nil {
 		return err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	l.Debug.Printf("%d: waiting for response", msgCtx.id)
-
 	packetResponse, ok := <-msgCtx.responses
 	if !ok {
 		return NewError(ErrorNetwork, errors.New("ldap: response channel closed"))
@@ -306,7 +292,6 @@ func (l *Conn) StartTLS(config *tls.Config) error {
 	if err != nil {
 		return err
 	}
-
 	if l.Debug {
 		if err := addLDAPDescriptions(packet); err != nil {
 			l.Close()
@@ -314,22 +299,18 @@ func (l *Conn) StartTLS(config *tls.Config) error {
 		}
 		l.Debug.PrintPacket(packet)
 	}
-
 	if err := GetLDAPError(packet); err == nil {
 		conn := tls.Client(l.conn, config)
-
 		if connErr := conn.Handshake(); connErr != nil {
 			l.Close()
 			return NewError(ErrorNetwork, fmt.Errorf("TLS handshake failed (%v)", connErr))
 		}
-
 		l.isTLS = true
 		l.conn = conn
 	} else {
 		return err
 	}
 	go l.reader()
-
 	return nil
 }
 
@@ -366,9 +347,7 @@ func (l *Conn) SendMessageWithFlags(packet *ber.Packet, flags SendMessageFlags) 
 		l.isStartingTLS = true
 	}
 	l.outstandingRequests++
-
 	l.messageMutex.Unlock()
-
 	responses := make(chan *PacketResponse)
 	messageID := packet.Children[0].Value.(int64)
 	message := &messagePacket{
@@ -392,18 +371,15 @@ func (l *Conn) SendMessageWithFlags(packet *ber.Packet, flags SendMessageFlags) 
 
 func (l *Conn) FinishMessage(msgCtx *MessageContext) {
 	close(msgCtx.done)
-
 	if l.IsClosing() {
 		return
 	}
-
 	l.messageMutex.Lock()
 	l.outstandingRequests--
 	if l.isStartingTLS {
 		l.isStartingTLS = false
 	}
 	l.messageMutex.Unlock()
-
 	message := &messagePacket{
 		Op:        MessageFinish,
 		MessageID: msgCtx.id,
@@ -439,7 +415,6 @@ func (l *Conn) processMessages() {
 		close(l.chanMessageID)
 		close(l.chanConfirm)
 	}()
-
 	var messageID int64 = 1
 	for {
 		select {
@@ -453,7 +428,6 @@ func (l *Conn) processMessages() {
 			case MessageRequest:
 				// Add to message list and write to network
 				l.Debug.Printf("Sending message %d", message.MessageID)
-
 				buf := message.Packet.Bytes()
 				_, err := l.conn.Write(buf)
 				if err != nil {
@@ -462,11 +436,9 @@ func (l *Conn) processMessages() {
 					close(message.Context.responses)
 					break
 				}
-
 				// Only add to messageContexts if we were able to
 				// successfully write the message.
 				l.messageContexts[message.MessageID] = message.Context
-
 				// Add timeout if defined
 				requestTimeout := time.Duration(atomic.LoadInt64(&l.requestTimeout))
 				if requestTimeout > 0 {
@@ -522,7 +494,6 @@ func (l *Conn) reader() {
 			l.Close()
 		}
 	}()
-
 	for {
 		if cleanstop {
 			l.Debug.Printf("reader clean stopping (without closing the connection)")

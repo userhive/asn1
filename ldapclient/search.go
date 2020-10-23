@@ -49,7 +49,6 @@ func NewEntry(dn string, attributes map[string][]string) *Entry {
 		attributeNames = append(attributeNames, attributeName)
 	}
 	sort.Strings(attributeNames)
-
 	var encodedAttributes []*EntryAttribute
 	for _, attributeName := range attributeNames {
 		encodedAttributes = append(encodedAttributes, NewEntryAttribute(attributeName, attributes[attributeName]))
@@ -252,12 +251,10 @@ func (req *SearchRequest) AppendTo(envelope *ber.Packet) error {
 		attributesPacket.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute, "Attribute"))
 	}
 	pkt.AppendChild(attributesPacket)
-
 	envelope.AppendChild(pkt)
 	if len(req.Controls) > 0 {
 		envelope.AppendChild(encodeControls(req.Controls))
 	}
-
 	return nil
 }
 
@@ -293,7 +290,6 @@ func NewSearchRequest(
 // A requested pagingSize of 0 is interpreted as no limit by LDAP servers.
 func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32) (*SearchResult, error) {
 	var pagingControl *ControlPaging
-
 	control := FindControl(searchRequest.Controls, ControlTypePaging)
 	if control == nil {
 		pagingControl = NewControlPaging(pagingSize)
@@ -308,7 +304,6 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 		}
 		pagingControl = castControl
 	}
-
 	searchResult := new(SearchResult)
 	for {
 		result, err := l.Search(searchRequest)
@@ -319,7 +314,6 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 		if result == nil {
 			return searchResult, NewError(ErrorNetwork, errors.New("ldap: packet not received"))
 		}
-
 		for _, entry := range result.Entries {
 			searchResult.Entries = append(searchResult.Entries, entry)
 		}
@@ -329,7 +323,6 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 		for _, control := range result.Controls {
 			searchResult.Controls = append(searchResult.Controls, control)
 		}
-
 		l.Debug.Printf("Looking for Paging Control...")
 		pagingResult := FindControl(result.Controls, ControlTypePaging)
 		if pagingResult == nil {
@@ -337,7 +330,6 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 			l.Debug.Printf("Could not find paging control.  Breaking...")
 			break
 		}
-
 		cookie := pagingResult.(*ControlPaging).Cookie
 		if len(cookie) == 0 {
 			pagingControl = nil
@@ -346,13 +338,11 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 		}
 		pagingControl.SetCookie(cookie)
 	}
-
 	if pagingControl != nil {
 		l.Debug.Printf("Abandoning Paging...")
 		pagingControl.PagingSize = 0
 		l.Search(searchRequest)
 	}
-
 	return searchResult, nil
 }
 
@@ -363,19 +353,16 @@ func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
 		return nil, err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	result := &SearchResult{
 		Entries:   make([]*Entry, 0),
 		Referrals: make([]string, 0),
 		Controls:  make([]Control, 0),
 	}
-
 	for {
 		packet, err := l.ReadPacket(msgCtx)
 		if err != nil {
 			return result, err
 		}
-
 		switch packet.Children[1].Tag {
 		case 4:
 			entry := new(Entry)

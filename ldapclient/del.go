@@ -17,12 +17,10 @@ type DelRequest struct {
 func (req *DelRequest) AppendTo(envelope *ber.Packet) error {
 	pkt := ber.NewPacket(ber.ClassApplication, ber.TypePrimitive, ApplicationDelRequest.Tag(), req.DN, "Del Request")
 	pkt.Data.Write([]byte(req.DN))
-
 	envelope.AppendChild(pkt)
 	if len(req.Controls) > 0 {
 		envelope.AppendChild(encodeControls(req.Controls))
 	}
-
 	return nil
 }
 
@@ -41,12 +39,10 @@ func (l *Conn) Del(delRequest *DelRequest) error {
 		return err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
-
 	if packet.Children[1].Tag == ApplicationDelResponse.Tag() {
 		err := GetLDAPError(packet)
 		if err != nil {

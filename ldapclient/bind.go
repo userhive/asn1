@@ -48,12 +48,10 @@ func (req *SimpleBindRequest) AppendTo(envelope *ber.Packet) error {
 	pkt.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Username, "User Name"))
 	pkt.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, req.Password, "Password"))
-
 	envelope.AppendChild(pkt)
 	if len(req.Controls) > 0 {
 		envelope.AppendChild(encodeControls(req.Controls))
 	}
-
 	return nil
 }
 
@@ -62,22 +60,18 @@ func (l *Conn) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResu
 	if simpleBindRequest.Password == "" && !simpleBindRequest.AllowEmptyPassword {
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
-
 	msgCtx, err := l.DoRequest(simpleBindRequest)
 	if err != nil {
 		return nil, err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}
-
 	result := &SimpleBindResult{
 		Controls: make([]Control, 0),
 	}
-
 	if len(packet.Children) == 3 {
 		for _, child := range packet.Children[2].Children {
 			decodedChild, decodeErr := DecodeControl(child)
@@ -87,7 +81,6 @@ func (l *Conn) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResu
 			result.Controls = append(result.Controls, decodedChild)
 		}
 	}
-
 	err = GetLDAPError(packet)
 	return result, err
 }
@@ -138,7 +131,6 @@ func (req *DigestMD5BindRequest) AppendTo(envelope *ber.Packet) error {
 	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 	request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
-
 	auth := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 3, "", "authentication")
 	auth.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "DIGEST-MD5", "SASL Mech"))
 	request.AppendChild(auth)
@@ -170,13 +162,11 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 	if digestMD5BindRequest.Password == "" {
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
-
 	msgCtx, err := l.DoRequest(digestMD5BindRequest)
 	if err != nil {
 		return nil, err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
@@ -188,7 +178,6 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 		}
 		packet.PrettyPrint(os.Stdout, 0)
 	}
-
 	result := &DigestMD5BindResult{
 		Controls: make([]Control, 0),
 	}
@@ -216,7 +205,6 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 			}
 		}
 	}
-
 	if params != nil {
 		resp := computeResponse(
 			params,
@@ -226,11 +214,9 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 		)
 		packet = ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, l.nextMessageID(), "MessageID"))
-
 		request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 		request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 		request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
-
 		auth := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 3, "", "authentication")
 		auth.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "DIGEST-MD5", "SASL Mech"))
 		auth.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, resp, "Credentials"))
@@ -251,7 +237,6 @@ func (l *Conn) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Diges
 			return nil, fmt.Errorf("read packet: %s", err)
 		}
 	}
-
 	err = GetLDAPError(packet)
 	return result, err
 }
@@ -310,7 +295,6 @@ func computeResponse(params map[string]string, uri, username, password string) s
 	cnonce := enchex.EncodeToString(randomBytes(16))
 	x := username + ":" + params["realm"] + ":" + password
 	y := md5Hash([]byte(x))
-
 	a1 := bytes.NewBuffer(y)
 	a1.WriteString(":" + params["nonce"] + ":" + cnonce)
 	if len(params["authzid"]) > 0 {
@@ -320,7 +304,6 @@ func computeResponse(params map[string]string, uri, username, password string) s
 	a2.WriteString(":" + uri)
 	ha1 := enchex.EncodeToString(md5Hash(a1.Bytes()))
 	ha2 := enchex.EncodeToString(md5Hash(a2.Bytes()))
-
 	kd := ha1
 	kd += ":" + params["nonce"]
 	kd += ":" + nc
@@ -358,15 +341,11 @@ var externalBindRequest = RequestFunc(func(envelope *ber.Packet) error {
 	pkt := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 	pkt.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	pkt.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
-
 	saslAuth := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 3, "", "authentication")
 	saslAuth.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "EXTERNAL", "SASL Mech"))
 	saslAuth.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "SASL Cred"))
-
 	pkt.AppendChild(saslAuth)
-
 	envelope.AppendChild(pkt)
-
 	return nil
 })
 
@@ -381,17 +360,14 @@ func (l *Conn) ExternalBind() error {
 		return err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
-
 	return GetLDAPError(packet)
 }
 
 // NTLMBind performs an NTLMSSP bind leveraging https://github.com/Azure/go-ntlmssp
-
 // NTLMBindRequest represents an NTLMSSP bind operation
 type NTLMBindRequest struct {
 	// Domain is the AD Domain to authenticate too. If not specified, it will be grabbed from the NTLMSSP Challenge
@@ -410,13 +386,11 @@ func (req *NTLMBindRequest) AppendTo(envelope *ber.Packet) error {
 	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 	request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
-
 	// generate an NTLMSSP Negotiation message for the  specified domain (it can be blank)
 	negMessage, err := ntlmssp.NewNegotiateMessage(req.Domain, "")
 	if err != nil {
 		return fmt.Errorf("err creating negmessage: %s", err)
 	}
-
 	// append the generated NTLMSSP message as a TagEnumerated BER value
 	auth := ber.NewPacket(ber.ClassContext, ber.TypePrimitive, ber.TagEnumerated, negMessage, "authentication")
 	request.AppendChild(auth)
@@ -459,7 +433,6 @@ func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindRes
 	if ntlmBindRequest.Password == "" && ntlmBindRequest.Hash == "" {
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
-
 	msgCtx, err := l.DoRequest(ntlmBindRequest)
 	if err != nil {
 		return nil, err
@@ -480,7 +453,6 @@ func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindRes
 		Controls: make([]Control, 0),
 	}
 	var ntlmsspChallenge []byte
-
 	// now find the NTLM Response Message
 	if len(packet.Children) == 2 {
 		if len(packet.Children[1].Children) == 3 {
@@ -509,14 +481,11 @@ func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindRes
 		}
 		packet = ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, l.nextMessageID(), "MessageID"))
-
 		request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 		request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 		request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
-
 		// append the challenge response message as a TagEmbeddedPDV BER value
 		auth := ber.NewPacket(ber.ClassContext, ber.TypePrimitive, ber.TagEmbeddedPDV, responseMessage, "authentication")
-
 		request.AppendChild(auth)
 		packet.AppendChild(request)
 		msgCtx, err = l.SendMessage(packet)
@@ -533,9 +502,7 @@ func (l *Conn) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindRes
 		if err != nil {
 			return nil, fmt.Errorf("read packet: %s", err)
 		}
-
 	}
-
 	err = GetLDAPError(packet)
 	return result, err
 }

@@ -14,7 +14,6 @@ var (
 type Request interface {
 	AppendTo(*ber.Packet) error
 }
-
 type RequestFunc func(*ber.Packet) error
 
 func (f RequestFunc) AppendTo(p *ber.Packet) error {
@@ -27,11 +26,9 @@ func (l *Conn) DoRequest(req Request) (*MessageContext, error) {
 	if err := req.AppendTo(packet); err != nil {
 		return nil, err
 	}
-
 	if l.Debug {
 		l.Debug.PrintPacket(packet)
 	}
-
 	msgCtx, err := l.SendMessage(packet)
 	if err != nil {
 		return nil, err
@@ -51,11 +48,9 @@ func (l *Conn) ReadPacket(msgCtx *MessageContext) (*ber.Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if packet == nil {
 		return nil, NewError(ErrorNetwork, errCouldNotRetMsg)
 	}
-
 	if l.Debug {
 		if err = addLDAPDescriptions(packet); err != nil {
 			return nil, err

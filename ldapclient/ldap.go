@@ -2,7 +2,6 @@
 package ldapclient
 
 //go:generate stringer -type Application -trimprefix Application
-
 import (
 	"encoding/hex"
 	"fmt"
@@ -137,7 +136,6 @@ func addLDAPDescriptions(packet *ber.Packet) (err error) {
 		err = addRequestDescriptions(packet)
 	case ApplicationExtendedResponse:
 	}
-
 	return err
 }
 
@@ -151,12 +149,10 @@ func addControlDescriptions(packet *ber.Packet) error {
 		case 0:
 			// at least one child is required for control type
 			return fmt.Errorf("at least one child is required for control type")
-
 		case 1:
 			// just type, no criticality or value
 			controlType = child.Children[0].Value.(string)
 			child.Children[0].Desc = "Control Type (" + ControlTypeMap[controlType] + ")"
-
 		case 2:
 			controlType = child.Children[0].Value.(string)
 			child.Children[0].Desc = "Control Type (" + ControlTypeMap[controlType] + ")"
@@ -168,7 +164,6 @@ func addControlDescriptions(packet *ber.Packet) error {
 				child.Children[1].Desc = "Control Value"
 				value = child.Children[1]
 			}
-
 		case 3:
 			// criticality and value present
 			controlType = child.Children[0].Value.(string)
@@ -176,12 +171,10 @@ func addControlDescriptions(packet *ber.Packet) error {
 			child.Children[1].Desc = "Criticality"
 			child.Children[2].Desc = "Control Value"
 			value = child.Children[2]
-
 		default:
 			// more than 3 children is invalid
 			return fmt.Errorf("more than 3 children for control packet found")
 		}
-
 		if value == nil {
 			continue
 		}
@@ -201,7 +194,6 @@ func addControlDescriptions(packet *ber.Packet) error {
 			value.Children[0].Desc = "Real Search Control Value"
 			value.Children[0].Children[0].Desc = "Paging Size"
 			value.Children[0].Children[1].Desc = "Cookie"
-
 		case ControlTypeBeheraPasswordPolicy:
 			value.Desc += " (Password Policy - Behera Draft)"
 			if value.Value != nil {
@@ -266,7 +258,6 @@ func addDefaultLDAPResponseDescriptions(packet *ber.Packet) error {
 		matchedDN = err.(*Error).MatchedDN
 		description = "Error Message"
 	}
-
 	packet.Children[1].Children[0].Desc = "Result Code (" + LDAPResultCodeMap[resultCode] + ")"
 	packet.Children[1].Children[1].Desc = "Matched DN (" + matchedDN + ")"
 	packet.Children[1].Children[2].Desc = description

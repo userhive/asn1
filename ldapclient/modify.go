@@ -90,12 +90,10 @@ func (req *ModifyRequest) AppendTo(envelope *ber.Packet) error {
 		changes.AppendChild(change.encode())
 	}
 	pkt.AppendChild(changes)
-
 	envelope.AppendChild(pkt)
 	if len(req.Controls) > 0 {
 		envelope.AppendChild(encodeControls(req.Controls))
 	}
-
 	return nil
 }
 
@@ -114,12 +112,10 @@ func (l *Conn) Modify(modifyRequest *ModifyRequest) error {
 		return err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
-
 	if packet.Children[1].Tag == ApplicationModifyResponse.Tag() {
 		err := GetLDAPError(packet)
 		if err != nil {

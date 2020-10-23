@@ -43,12 +43,10 @@ func (req *AddRequest) AppendTo(envelope *ber.Packet) error {
 		attributes.AppendChild(attribute.encode())
 	}
 	pkt.AppendChild(attributes)
-
 	envelope.AppendChild(pkt)
 	if len(req.Controls) > 0 {
 		envelope.AppendChild(encodeControls(req.Controls))
 	}
-
 	return nil
 }
 
@@ -72,12 +70,10 @@ func (l *Conn) Add(addRequest *AddRequest) error {
 		return err
 	}
 	defer l.FinishMessage(msgCtx)
-
 	packet, err := l.ReadPacket(msgCtx)
 	if err != nil {
 		return err
 	}
-
 	if packet.Children[1].Tag == ApplicationAddResponse.Tag() {
 		err := GetLDAPError(packet)
 		if err != nil {
