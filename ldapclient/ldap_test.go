@@ -171,14 +171,14 @@ func TestSearchWithPaging(t *testing.T) {
 	}
 }
 
-func searchGoroutine(t *testing.T, l *Conn, results chan *SearchResult, i int) {
+func searchGoroutine(t *testing.T, cl *Client, results chan *SearchResult, i int) {
 	searchRequest := NewSearchRequest(
 		baseDN,
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
 		testFilters()[i],
 		attributes,
 		nil)
-	sr, err := l.Search(searchRequest)
+	sr, err := cl.Search(searchRequest)
 	if err != nil {
 		t.Error(err)
 		results <- nil
@@ -188,23 +188,23 @@ func searchGoroutine(t *testing.T, l *Conn, results chan *SearchResult, i int) {
 }
 
 func testMultiGoroutineSearch(t *testing.T, TLS bool, startTLS bool) {
-	var l *Conn
+	var cl *Client
 	var err error
 	if TLS {
-		l, err = DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
+		cl, err = DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer l.Close()
+		defer cl.Close()
 	} else {
-		l, err = DialURL(ldapServer)
+		cl, err = DialURL(ldapServer)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer l.Close()
+		defer cl.Close()
 		if startTLS {
 			t.Log("TestMultiGoroutineSearch: using StartTLS...")
-			err := l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+			err := cl.StartTLS(&tls.Config{InsecureSkipVerify: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -213,7 +213,7 @@ func testMultiGoroutineSearch(t *testing.T, TLS bool, startTLS bool) {
 	results := make([]chan *SearchResult, len(testFilters()))
 	for i := range testFilters() {
 		results[i] = make(chan *SearchResult)
-		go searchGoroutine(t, l, results[i], i)
+		go searchGoroutine(t, cl, results[i], i)
 	}
 	for i := range testFilters() {
 		sr := <-results[i]

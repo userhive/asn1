@@ -26,22 +26,22 @@ func TestUnresponsiveConnection(t *testing.T) {
 		t.Fatalf("error connecting to localhost tcp: %v", err)
 	}
 	// Create an Ldap connection
-	conn := NewConn(c, false)
-	conn.SetTimeout(time.Millisecond)
-	conn.Start()
-	defer conn.Close()
+	cl := NewClient(c, false)
+	cl.SetTimeout(time.Millisecond)
+	cl.Start()
+	defer cl.Close()
 	// Mock a packet
 	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
-	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, conn.nextMessageID(), "MessageID"))
+	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
 	bindRequest := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 	bindRequest.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	packet.AppendChild(bindRequest)
 	// Send packet and test response
-	msgCtx, err := conn.SendMessage(packet)
+	msgCtx, err := cl.SendMessage(packet)
 	if err != nil {
 		t.Fatalf("error sending message: %v", err)
 	}
-	defer conn.FinishMessage(msgCtx)
+	defer cl.FinishMessage(msgCtx)
 	packetResponse, ok := <-msgCtx.responses
 	if !ok {
 		t.Fatalf("no PacketResponse in response channel")
@@ -61,18 +61,18 @@ func TestFinishMessage(t *testing.T) {
 	t.Parallel()
 	ptc := newPacketTranslatorConn()
 	defer ptc.Close()
-	conn := NewConn(ptc, false)
-	conn.Start()
+	cl := NewClient(ptc, false)
+	cl.Start()
 	// Test sending 5 different requests in series. Ensure that we can
 	// get a response packet from the underlying connection and also
 	// ensure that we can gracefully ignore unhandled responses.
 	for i := 0; i < 5; i++ {
 		t.Logf("serial request %d", i)
 		// Create a message and make sure we can receive responses.
-		msgCtx := testSendRequest(t, ptc, conn)
+		msgCtx := testSendRequest(t, ptc, cl)
 		testReceiveResponse(t, ptc, msgCtx)
 		// Send a few unhandled responses and finish the message.
-		testSendUnhandledResponsesAndFinish(t, ptc, conn, msgCtx, 5)
+		testSendUnhandledResponsesAndFinish(t, ptc, cl, msgCtx, 5)
 		t.Logf("serial request %d done", i)
 	}
 	// Test sending 5 different requests in parallel.
@@ -83,29 +83,29 @@ func TestFinishMessage(t *testing.T) {
 			defer wg.Done()
 			t.Logf("parallel request %d", i)
 			// Create a message and make sure we can receive responses.
-			msgCtx := testSendRequest(t, ptc, conn)
+			msgCtx := testSendRequest(t, ptc, cl)
 			testReceiveResponse(t, ptc, msgCtx)
 			// Send a few unhandled responses and finish the message.
-			testSendUnhandledResponsesAndFinish(t, ptc, conn, msgCtx, 5)
+			testSendUnhandledResponsesAndFinish(t, ptc, cl, msgCtx, 5)
 			t.Logf("parallel request %d done", i)
 		}(i)
 	}
 	wg.Wait()
 	// We cannot run Close() in a defer because t.FailNow() will run it and
 	// it will block if the processMessage Loop is in a deadlock.
-	conn.Close()
+	cl.Close()
 }
 
-func testSendRequest(t *testing.T, ptc *packetTranslatorConn, conn *Conn) (msgCtx *MessageContext) {
+func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCtx *MessageContext) {
 	var msgID int64
 	runWithTimeout(t, time.Second, func() {
-		msgID = conn.nextMessageID()
+		msgID = cl.nextMessageID()
 	})
 	requestPacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	requestPacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgID, "MessageID"))
 	var err error
 	runWithTimeout(t, time.Second, func() {
-		msgCtx, err = conn.SendMessage(requestPacket)
+		msgCtx, err = cl.SendMessage(requestPacket)
 		if err != nil {
 			t.Fatalf("unable to send request message: %s", err)
 		}
@@ -137,7 +137,7 @@ func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *Messag
 	})
 }
 
-func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn, conn *Conn, msgCtx *MessageContext, numResponses int) {
+func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn, cl *Client, msgCtx *MessageContext, numResponses int) {
 	// Send a mock response packet.
 	responsePacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 	responsePacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
@@ -152,7 +152,7 @@ func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn
 	}
 	// Finally, attempt to finish this message.
 	runWithTimeout(t, time.Second, func() {
-		conn.FinishMessage(msgCtx)
+		cl.FinishMessage(msgCtx)
 	})
 }
 
