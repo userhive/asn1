@@ -72,7 +72,7 @@ func TestParseHeader(t *testing.T) {
 		expClass Class
 		expType  Type
 		expTag   Tag
-		expCount int
+		expLen   int
 		err      string
 	}{
 		{ // empty
@@ -84,7 +84,7 @@ func TestParseHeader(t *testing.T) {
 			expClass: ClassUniversal,
 			expType:  TypePrimitive,
 			expTag:   TagCharacterString,
-			expCount: 127,
+			expLen:   127,
 			err:      "",
 		},
 		{ // valid long form
@@ -100,7 +100,7 @@ func TestParseHeader(t *testing.T) {
 			expClass: ClassUniversal,
 			expType:  TypePrimitive,
 			expTag:   TagCharacterString,
-			expCount: 127,
+			expLen:   127,
 			err:      "",
 		},
 		{ // valid indefinite length
@@ -112,7 +112,7 @@ func TestParseHeader(t *testing.T) {
 			expClass: ClassUniversal,
 			expType:  TypeConstructed,
 			expTag:   TagCharacterString,
-			expCount: -1,
+			expLen:   -1,
 			err:      "",
 		},
 		{ // invalid indefinite length
@@ -128,7 +128,7 @@ func TestParseHeader(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		n, class, typ, tag, count, err := ParseHeader(bytes.NewReader(test.v))
+		n, class, typ, tag, length, err := ParseHeader(bytes.NewReader(test.v))
 		switch {
 		case err != nil && test.err == "":
 			t.Errorf("test %d: unexpected error: %v", i, err)
@@ -144,8 +144,8 @@ func TestParseHeader(t *testing.T) {
 			t.Errorf("test %d: expected tag type %s, got: %s", i, test.expType, typ)
 		case tag != test.expTag:
 			t.Errorf("test %d: expected tag %s, got %s", i, test.expTag, tag)
-		case count != test.expCount:
-			t.Errorf("test %d: expected count %d, got %d", i, test.expCount, count)
+		case length != test.expLen:
+			t.Errorf("test %d: expected length %d, got %d", i, test.expLen, length)
 		}
 	}
 }
@@ -322,13 +322,13 @@ func TestParseIdentifier(t *testing.T) {
 	}
 }
 
-func TestParseCount(t *testing.T) {
+func TestParseLength(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		v        []byte
-		expN     int
-		expCount int64
-		err      string
+		v      []byte
+		expN   int
+		expLen int64
+		err    string
 	}{
 		{ // empty
 			v: []byte{}, expN: 0, err: "unexpected EOF",
@@ -337,16 +337,16 @@ func TestParseCount(t *testing.T) {
 			v: []byte{0xFF}, expN: 1, err: "invalid length",
 		},
 		{ // indefinite form
-			v: []byte{longFormBitmaskLen}, expN: 1, expCount: -1,
+			v: []byte{longFormBitmaskLen}, expN: 1, expLen: -1,
 		},
 		{ // short-definite-form zero length
-			v: []byte{0}, expN: 1, expCount: 0,
+			v: []byte{0}, expN: 1, expLen: 0,
 		},
 		{ // short-definite-form length 1
-			v: []byte{1}, expN: 1, expCount: 1,
+			v: []byte{1}, expN: 1, expLen: 1,
 		},
 		{ // short-definite-form max length
-			v: []byte{127}, expN: 1, expCount: 127,
+			v: []byte{127}, expN: 1, expLen: 127,
 		},
 		{ // long-definite-form missing bytes
 			v: []byte{longFormBitmaskLen | 1}, expN: 1, err: "unexpected EOF",
@@ -358,21 +358,21 @@ func TestParseCount(t *testing.T) {
 			v: []byte{longFormBitmaskLen | 1, 0x0}, expN: 2,
 		},
 		{ // long-definite-form length 127
-			v: []byte{longFormBitmaskLen | 1, 127}, expN: 2, expCount: 127,
+			v: []byte{longFormBitmaskLen | 1, 127}, expN: 2, expLen: 127,
 		},
 		{ // long-definite-form max length (32-bit)
-			v: []byte{longFormBitmaskLen | 4, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF}, expN: 5, expCount: math.MaxInt32,
+			v: []byte{longFormBitmaskLen | 4, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF}, expN: 5, expLen: math.MaxInt32,
 		},
 		{ // long-definite-form max length (64-bit)
-			v: []byte{longFormBitmaskLen | 8, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, expN: 9, expCount: math.MaxInt64,
+			v: []byte{longFormBitmaskLen | 8, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, expN: 9, expLen: math.MaxInt64,
 		},
 	}
 	for i, test := range tests {
 		// Skip tests requiring 64-bit integers on platforms that don't support them
-		if test.expCount != int64(int(test.expCount)) {
+		if test.expLen != int64(int(test.expLen)) {
 			continue
 		}
-		n, count, err := ParseCount(bytes.NewReader(test.v))
+		n, length, err := ParseLength(bytes.NewReader(test.v))
 		switch {
 		case err != nil && test.err == "":
 			t.Errorf("test %d: expected no error, got: %v", i, err)
@@ -382,8 +382,8 @@ func TestParseCount(t *testing.T) {
 			t.Errorf("test %d: expected error %v", i, test.err)
 		case n != test.expN:
 			t.Errorf("test %d: expected read %d, got %d", i, test.expN, n)
-		case int64(count) != test.expCount:
-			t.Errorf("test %d: expected count %d, got %d", i, test.expCount, count)
+		case int64(length) != test.expLen:
+			t.Errorf("test %d: expected length %d, got %d", i, test.expLen, length)
 		}
 	}
 }
@@ -493,7 +493,7 @@ func TestEncodeTag(t *testing.T) {
 	}
 }
 
-func TestEncodeCount(t *testing.T) {
+func TestEncodeLength(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		n   int64
@@ -545,7 +545,7 @@ func TestEncodeCount(t *testing.T) {
 		if test.n != int64(int(test.n)) {
 			continue
 		}
-		b := EncodeCount(int(test.n))
+		b := EncodeLength(int(test.n))
 		if !bytes.Equal(test.exp, b) {
 			t.Errorf("test %d: Expected\n\t%#v\ngot\n\t%#v", i, test.exp, b)
 		}

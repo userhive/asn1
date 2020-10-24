@@ -39,19 +39,19 @@ func ParseHeader(r io.Reader) (int, Class, Type, Tag, int, error) {
 	if err != nil {
 		return n, 0, 0, 0, 0, err
 	}
-	nn, count, err := ParseCount(r)
+	nn, length, err := ParseLength(r)
 	if err != nil {
-		return n + nn, class, typ, tag, count, err
+		return n + nn, class, typ, tag, length, err
 	}
 	n += nn
 	// Validate length type with identifier (x.600, 8.1.3.2.a)
 	switch {
-	case count == -1 && typ == TypePrimitive:
+	case length == -1 && typ == TypePrimitive:
 		return n, class, typ, tag, 0, ErrIndefiniteLengthUsedWithPrimitiveType
-	case count < -1:
+	case length < -1:
 		return n, class, typ, tag, 0, ErrLengthCannotBeLessThanNegative1
 	}
-	return n, class, typ, tag, count, nil
+	return n, class, typ, tag, length, nil
 }
 
 // ParseIdentifier parses the ber packet class, tag type, and tag from the
@@ -68,24 +68,24 @@ func ParseIdentifier(r io.Reader) (int, Class, Type, Tag, error) {
 		return n, class, typ, tag, nil
 	}
 	// high-tag-number tag
-	count := 0
+	length := 0
 	for {
 		nn, b, err := ReadByte(r)
 		if err != nil {
 			return n, 0, 0, 0, err
 		}
-		count += nn
+		length += nn
 		n += nn
 		// Lowest 7 bits get appended to the tag value (x.690, 8.1.2.4.2.b)
 		tag <<= 7
 		tag |= Tag(b) & tagHighValueBitmask
 		// First byte may not be all zeros (x.690, 8.1.2.4.2.c)
-		if count == 1 && tag == 0 {
+		if length == 1 && tag == 0 {
 			return n, 0, 0, 0, ErrInvalidHighByte
 		}
 		// Overflow of int64
 		// TODO: support big int tags?
-		if count > 9 {
+		if length > 9 {
 			return n, 0, 0, 0, ErrTagValueOverflow
 		}
 		// Top bit of 0 means this is the last byte in the high-tag-number tag (x.690, 8.1.2.4.2.a)
@@ -96,7 +96,7 @@ func ParseIdentifier(r io.Reader) (int, Class, Type, Tag, error) {
 	return n, class, typ, tag, nil
 }
 
-func ParseCount(r io.Reader) (int, int, error) {
+func ParseLength(r io.Reader) (int, int, error) {
 	var l int
 	// length byte
 	n, b, err := ReadByte(r)
@@ -115,15 +115,15 @@ func ParseCount(r io.Reader) (int, int, error) {
 		l = int(b) & valueBitmaskLen
 	case b&longFormBitmaskLen != 0:
 		// Long definite form, extract the number of length bytes to follow from the bottom 7 bits (x.600, 8.1.3.5.b)
-		count := int(b) & valueBitmaskLen
+		length := int(b) & valueBitmaskLen
 		// Protect against overflow
 		// TODO: support big int length?
-		if count > 8 {
+		if length > 8 {
 			return n, 0, ErrLengthValueOverflow
 		}
 		// Accumulate into a 64-bit variable
 		var ll int64
-		for i := 0; i < count; i++ {
+		for i := 0; i < length; i++ {
 			_, b, err = ReadByte(r)
 			if err != nil {
 				return n, 0, err
@@ -436,7 +436,7 @@ func EncodeTag(tag Tag) []byte {
 	return buf
 }
 
-func EncodeCount(n int) []byte {
+func EncodeLength(n int) []byte {
 	buf := EncodeUint64(uint64(n))
 	if n > 127 || len(buf) > 1 {
 		buf = append([]byte{longFormBitmaskLen | byte(len(buf))}, buf...)

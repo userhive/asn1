@@ -95,7 +95,7 @@ type Packet struct {
 
 // ParseLimit reads a ber packet from r up to max bytes.
 func ParseLimit(r io.Reader, max int) (int, *Packet, error) {
-	n, class, typ, tag, count, err := ParseHeader(r)
+	n, class, typ, tag, length, err := ParseHeader(r)
 	if err != nil {
 		return n, nil, err
 	}
@@ -113,13 +113,13 @@ func ParseLimit(r io.Reader, max int) (int, *Packet, error) {
 		total := 0
 		for {
 			// indefinite length
-			if count != -1 {
+			if length != -1 {
 				// End if we've read what we've been told to
-				if total == count {
+				if total == length {
 					break
 				}
 				// Detect if a packet boundary didn't fall on the expected length
-				if total > count {
+				if total > length {
 					return n, nil, ErrPastPacketBoundary
 				}
 			}
@@ -132,7 +132,7 @@ func ParseLimit(r io.Reader, max int) (int, *Packet, error) {
 			// Test is this is the EOC marker for our packet
 			if IsEOC(child) {
 				// indefinite length
-				if count == -1 {
+				if length == -1 {
 					break
 				}
 				return n, nil, ErrEOCChildNotAllowedWithDefiniteLength
@@ -143,15 +143,15 @@ func ParseLimit(r io.Reader, max int) (int, *Packet, error) {
 		return n, p, nil
 	}
 	// indefinite length
-	if count == -1 {
+	if length == -1 {
 		return n, nil, ErrIndefiniteLengthUsedWithPrimitiveType
 	}
 	// Read definite-length content
-	if max > 0 && count > max {
+	if max > 0 && length > max {
 		return n, nil, ErrLengthGreaterThanMax
 	}
-	buf := make([]byte, count)
-	if count > 0 {
+	buf := make([]byte, length)
+	if length > 0 {
 		_, err := io.ReadFull(r, buf)
 		switch {
 		case err != nil && err == io.EOF:
@@ -159,7 +159,7 @@ func ParseLimit(r io.Reader, max int) (int, *Packet, error) {
 		case err != nil:
 			return n, nil, err
 		}
-		n += count
+		n += length
 	}
 	if p.Class == ClassUniversal {
 		p.Data.Write(buf)
@@ -382,35 +382,32 @@ func NewReal(class Class, typ Type, tag Tag, value interface{}, desc string) *Pa
 
 // String satisfies the fmt.Stringer interface.
 func (p *Packet) String() string {
-	buf := new(bytes.Buffer)
-	p.PrettyPrint(buf, 0)
-	return buf.String()
+	tagStr := fmt.Sprintf("Tag(0x%02X)", p.Tag)
+	if p.Class == ClassUniversal {
+		tagStr = p.Tag.String()
+	}
+	return fmt.Sprintf(
+		"(Class=%s, Type=%s, Tag=%s, Len=%d, Desc=%q)",
+		p.Class,
+		p.Type,
+		tagStr,
+		p.Data.Len(),
+		p.Desc,
+	)
 }
 
 // PrettyPrint pretty-prints the packet to the writer using the specified
 // indent.
 func (p *Packet) PrettyPrint(w io.Writer, indent int) {
-	tagStr := fmt.Sprintf("Tag(0x%02X)", p.Tag)
-	if p.Class == ClassUniversal {
-		tagStr = p.Tag.String()
-	}
-	desc := ""
-	if p.Desc != "" {
-		desc = p.Desc + ": "
-	}
 	v := "<nil>"
 	if p.Value != nil {
 		v = fmt.Sprintf("%q", p.Value)
 	}
 	_, _ = fmt.Fprintf(
 		w,
-		"%s%s(%s, %s, %s) Len=%d %s\n",
+		"%s%s %s\n",
 		strings.Repeat(" ", indent),
-		desc,
-		p.Class,
-		p.Type,
-		tagStr,
-		p.Data.Len(),
+		p.String(),
 		v,
 	)
 	for _, child := range p.Children {
@@ -422,7 +419,7 @@ func (p *Packet) PrettyPrint(w io.Writer, indent int) {
 func (p *Packet) Bytes() []byte {
 	buf := new(bytes.Buffer)
 	buf.Write(EncodeIdentifier(p.Class, p.Type, p.Tag))
-	buf.Write(EncodeCount(p.Data.Len()))
+	buf.Write(EncodeLength(p.Data.Len()))
 	buf.Write(p.Data.Bytes())
 	return buf.Bytes()
 }
