@@ -1047,20 +1047,20 @@ func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBind
 // search request. All paged LDAP query responses will be buffered and the final result will be returned atomically.
 // The following four cases are possible given the arguments:
 //  - given SearchRequest missing a control of type control.OIDPaging: we will add one with the desired paging size
-//  - given SearchRequest contains a control of type control.OIDPaging that isn't actually a ControlPaging: fail without issuing any queries
+//  - given SearchRequest contains a control of type control.OIDPaging that isn't actually a Paging: fail without issuing any queries
 //  - given SearchRequest contains a control of type control.OIDPaging with pagingSize equal to the size requested: no change to the search request
 //  - given SearchRequest contains a control of type control.OIDPaging with pagingSize not equal to the size requested: fail without issuing any queries
 // A requested pagingSize of 0 is interpreted as no limit by LDAP servers.
 func (cl *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32) (*SearchResult, error) {
-	var pagingControl *control.ControlPaging
+	var pagingControl *control.Paging
 	c := control.Find(searchRequest.Controls, control.OIDPaging)
 	if c == nil {
-		pagingControl = control.NewControlPaging(pagingSize)
+		pagingControl = control.NewPaging(pagingSize)
 		searchRequest.Controls = append(searchRequest.Controls, pagingControl)
 	} else {
-		castControl, ok := c.(*control.ControlPaging)
+		castControl, ok := c.(*control.Paging)
 		if !ok {
-			return nil, fmt.Errorf("expected paging control to be of type *ControlPaging, got %v", c)
+			return nil, fmt.Errorf("expected paging control to be of type *Paging, got %v", c)
 		}
 		if castControl.PagingSize != pagingSize {
 			return nil, fmt.Errorf("paging size given in search request (%d) conflicts with size given in search call (%d)", castControl.PagingSize, pagingSize)
@@ -1093,7 +1093,7 @@ func (cl *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint
 			cl.Debug.Printf("Could not find paging control.  Breaking...")
 			break
 		}
-		cookie := pagingResult.(*control.ControlPaging).Cookie
+		cookie := pagingResult.(*control.Paging).Cookie
 		if len(cookie) == 0 {
 			pagingControl = nil
 			cl.Debug.Printf("Could not find cookie.  Breaking...")

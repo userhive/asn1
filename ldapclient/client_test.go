@@ -576,7 +576,7 @@ func TestSearchWithPaging(t *testing.T) {
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
 		testFilters()[2],
 		attributes,
-		control.NewControlPaging(5),
+		control.NewPaging(5),
 	)
 	sr, err = l.SearchWithPaging(searchRequest, 5)
 	if err != nil {
@@ -588,7 +588,7 @@ func TestSearchWithPaging(t *testing.T) {
 		ScopeWholeSubtree, DerefAlways, 0, 0, false,
 		testFilters()[2],
 		attributes,
-		control.NewControlPaging(500),
+		control.NewPaging(500),
 	)
 	sr, err = l.SearchWithPaging(searchRequest, 5)
 	if err == nil {

@@ -1,5 +1,11 @@
 package control
 
+import (
+	"fmt"
+
+	"github.com/userhive/asn1/ber"
+)
+
 // Behera is the behera password policy enum.
 //
 // see: Behera Password Policy Draft 10 (https://tools.ietf.org/html/draft-behera-ldap-password-policy-10)
@@ -30,4 +36,50 @@ var BeheraPasswordPolicyErrorMap = map[Behera]string{
 	BeheraPasswordTooShort:            "Password is too short for policy",
 	BeheraPasswordTooYoung:            "Password has been changed too recently",
 	BeheraPasswordInHistory:           "New password is in list of old passwords",
+}
+
+// BeheraPasswordPolicy implements the control described in https://tools.ietf.org/html/draft-behera-ldap-password-policy-10
+type BeheraPasswordPolicy struct {
+	// Expire contains the number of seconds before a password will expire
+	Expire int64
+	// Grace indicates the remaining number of times a user will be allowed to authenticate with an expired password
+	Grace int64
+	// Error indicates the error code
+	Error int8
+	// ErrorString is a human readable error
+	ErrorString string
+}
+
+// NewBeheraPasswordPolicy returns a ControlBeheraPasswordPolicy
+func NewBeheraPasswordPolicy() *BeheraPasswordPolicy {
+	return &BeheraPasswordPolicy{
+		Expire: -1,
+		Grace:  -1,
+		Error:  -1,
+	}
+}
+
+// GetOID returns the OID
+func (c *BeheraPasswordPolicy) GetOID() string {
+	return OIDBeheraPasswordPolicy
+}
+
+// Encode returns the ber packet representation
+func (c *BeheraPasswordPolicy) Encode() *ber.Packet {
+	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
+	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, OIDBeheraPasswordPolicy, "Control OID ("+OIDMap[OIDBeheraPasswordPolicy]+")"))
+	return p
+}
+
+// String returns a human-readable description
+func (c *BeheraPasswordPolicy) String() string {
+	return fmt.Sprintf(
+		"Control OID: %s (%q)  Criticality: %t  Expire: %d  Grace: %d  Error: %d, ErrorString: %s",
+		OIDMap[OIDBeheraPasswordPolicy],
+		OIDBeheraPasswordPolicy,
+		false,
+		c.Expire,
+		c.Grace,
+		c.Error,
+		c.ErrorString)
 }

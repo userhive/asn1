@@ -202,15 +202,15 @@ func Example_beherappolicy() {
 	}
 	defer l.Close()
 	controls := []control.Control{
-		control.NewControlBeheraPasswordPolicy(),
+		control.NewBeheraPasswordPolicy(),
 	}
 	controls = append(controls)
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", controls...)
 	r, err := l.SimpleBind(bindRequest)
 	ppolicyControl := control.Find(r.Controls, control.OIDBeheraPasswordPolicy)
-	var ppolicy *control.ControlBeheraPasswordPolicy
+	var ppolicy *control.BeheraPasswordPolicy
 	if ppolicyControl != nil {
-		ppolicy = ppolicyControl.(*control.ControlBeheraPasswordPolicy)
+		ppolicy = ppolicyControl.(*control.BeheraPasswordPolicy)
 	} else {
 		log.Printf("ppolicyControl response not available.\n")
 	}
@@ -243,17 +243,17 @@ func Example_vchuppolicy() {
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", nil)
 	r, err := l.SimpleBind(bindRequest)
 	passwordMustChangeControl := control.Find(r.Controls, control.OIDVChuPasswordMustChange)
-	var passwordMustChange *control.ControlVChuPasswordMustChange
+	var passwordMustChange *control.VChuPasswordMustChange
 	if passwordMustChangeControl != nil {
-		passwordMustChange = passwordMustChangeControl.(*control.ControlVChuPasswordMustChange)
+		passwordMustChange = passwordMustChangeControl.(*control.VChuPasswordMustChange)
 	}
 	if passwordMustChange != nil && passwordMustChange.MustChange {
 		log.Printf("Password Must be changed.\n")
 	}
 	passwordWarningControl := control.Find(r.Controls, control.OIDVChuPasswordWarning)
-	var passwordWarning *control.ControlVChuPasswordWarning
+	var passwordWarning *control.VChuPasswordWarning
 	if passwordWarningControl != nil {
-		passwordWarning = passwordWarningControl.(*control.ControlVChuPasswordWarning)
+		passwordWarning = passwordWarningControl.(*control.VChuPasswordWarning)
 	} else {
 		log.Printf("ppolicyControl response not available.\n")
 	}
@@ -270,9 +270,9 @@ func Example_vchuppolicy() {
 	}
 }
 
-// This example demonstrates how to use ControlPaging to manually execute a
+// This example demonstrates how to use Paging to manually execute a
 // paginated search request instead of using SearchWithPaging.
-func ExampleControlPaging_manualPaging() {
+func ExamplePaging_manualPaging() {
 	conn, err := DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -281,7 +281,7 @@ func ExampleControlPaging_manualPaging() {
 	var pageSize uint32 = 32
 	searchBase := "dc=example,dc=com"
 	filter := "(objectClass=group)"
-	pagingControl := control.NewControlPaging(pageSize)
+	pagingControl := control.NewPaging(pageSize)
 	attributes := []string{}
 	controls := []control.Control{pagingControl}
 	for {
@@ -292,10 +292,10 @@ func ExampleControlPaging_manualPaging() {
 		}
 		// [do something with the response entries]
 		// In order to prepare the next request, we check if the response
-		// contains another ControlPaging object and a not-empty cookie and
+		// contains another Paging object and a not-empty cookie and
 		// copy that cookie into our pagingControl object:
 		updatedControl := control.Find(response.Controls, control.OIDPaging)
-		if ctrl, ok := updatedControl.(*control.ControlPaging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
+		if ctrl, ok := updatedControl.(*control.Paging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
 			pagingControl.SetCookie(ctrl.Cookie)
 			continue
 		}
