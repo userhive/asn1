@@ -40,6 +40,9 @@ var OIDMap = map[string]string{
 func Encode(controls ...Control) *ber.Packet {
 	p := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 0, nil, "Controls")
 	for _, c := range controls {
+		if c == nil {
+			panic("passed control is nil")
+		}
 		p.AppendChild(c.Encode())
 	}
 	return p

@@ -50,7 +50,6 @@ func TestSearchNotSupported(t *testing.T) {
 		"dc=example,dc=com", int(ScopeWholeSubtree), int(DerefAliasesNever), 0, 0, false,
 		"(&(objectClass=organizationalPerson))",
 		[]string{"dn", "cn"},
-		nil,
 	)
 	if _, err := conn.Search(req); !strings.Contains(err.Error(), "search operation not supported") {
 		t.Errorf("expected search operation not supported error, got: %v", err)
@@ -149,7 +148,6 @@ func TestSearch(t *testing.T) {
 		"dc=example,dc=com", int(ScopeWholeSubtree), int(DerefAliasesNever), 0, 0, false,
 		"(&(objectClass=organizationalPerson))",
 		[]string{"dn", "cn"},
-		nil,
 	)
 	res, err := conn.Search(req)
 	if err != nil {

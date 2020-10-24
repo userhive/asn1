@@ -390,7 +390,7 @@ func (p *Packet) String() string {
 // PrettyPrint pretty-prints the packet to the writer using the specified
 // indent.
 func (p *Packet) PrettyPrint(w io.Writer, indent int) {
-	tagStr := fmt.Sprintf("0x%02X", p.Tag)
+	tagStr := fmt.Sprintf("Tag(0x%02X)", p.Tag)
 	if p.Class == ClassUniversal {
 		tagStr = p.Tag.String()
 	}
@@ -398,16 +398,20 @@ func (p *Packet) PrettyPrint(w io.Writer, indent int) {
 	if p.Desc != "" {
 		desc = p.Desc + ": "
 	}
+	v := "<nil>"
+	if p.Value != nil {
+		v = fmt.Sprintf("%q", p.Value)
+	}
 	_, _ = fmt.Fprintf(
 		w,
-		"%s%s(%s, %s, %s) Len=%d %q\n",
-		strings.Repeat("", indent),
+		"%s%s(%s, %s, %s) Len=%d %s\n",
+		strings.Repeat(" ", indent),
 		desc,
 		p.Class,
 		p.Type,
 		tagStr,
 		p.Data.Len(),
-		p.Value,
+		v,
 	)
 	for _, child := range p.Children {
 		child.PrettyPrint(w, indent+1)
