@@ -17,7 +17,7 @@ func (f ModifyHandlerFunc) Modify(ctx context.Context, req *ModifyRequest) (*Mod
 
 type ModifyRequest struct{}
 
-func NewModifyRequest(req *Request) (*ModifyRequest, error) {
+func ParseModifyRequest(req *Request) (*ModifyRequest, error) {
 	return &ModifyRequest{}, nil
 }
 

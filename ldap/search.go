@@ -1,5 +1,8 @@
 package ldap
 
+//go:generate stringer -type Scope -trimprefix Scope
+//go:generate stringer -type DerefAliases -trimprefix DerefAliases
+
 import (
 	"context"
 	"time"
@@ -28,7 +31,7 @@ type SearchRequest struct {
 	Attributes   []string
 }
 
-func NewSearchRequest(req *Request) (*SearchRequest, error) {
+func ParseSearchRequest(req *Request) (*SearchRequest, error) {
 	if len(req.Packet.Children) != 8 {
 		return nil, NewErrorf(ResultProtocolError, "invalid search request, children missing (8 != %d)", len(req.Packet.Children))
 	}
@@ -144,30 +147,20 @@ func NewSearchQueryHandler(h QueryHandler) SearchHandler {
 // Scope is the scope enum.
 type Scope int
 
-// String satisfies the fmt.Stringer interface.
-func (s Scope) String() string {
-	return string(ScopeMap[int(s)])
-}
-
 // Scope values.
 const (
-	ScopeBaseObject   Scope = ScopeBaseObject
-	ScopeSingleLevel  Scope = ScopeSingleLevel
-	ScopeWholeSubtree Scope = ScopeWholeSubtree
+	ScopeBaseObject Scope = iota
+	ScopeSingleLevel
+	ScopeWholeSubtree
 )
 
 // DerefAliases is the deref aliases enum.
 type DerefAliases int
 
-// String satisfies the fmt.Stringer interface.
-func (d DerefAliases) String() string {
-	return string(DerefMap[int(d)])
-}
-
 // DerefAliases values.
 const (
-	DerefAliasesNever             DerefAliases = NeverDerefAliases
-	DerefAliasesInSearching       DerefAliases = DerefInSearching
-	DerefAliasesFindingBaseObject DerefAliases = DerefFindingBaseObj
-	DerefAliasesAlways            DerefAliases = DerefAlways
+	DerefAliasesNever DerefAliases = iota
+	DerefAliasesInSearching
+	DerefAliasesFindingBaseObject
+	DerefAliasesAlways
 )

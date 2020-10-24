@@ -38,7 +38,7 @@ type ExtendedRequest struct {
 	Value *ber.Packet
 }
 
-func NewExtendedRequest(req *Request) (*ExtendedRequest, error) {
+func ParseExtendedRequest(req *Request) (*ExtendedRequest, error) {
 	if len(req.Packet.Children) < 1 {
 		return nil, NewError(ResultProtocolError, "missing extended operation identifier")
 	}
@@ -52,7 +52,7 @@ func NewExtendedRequest(req *Request) (*ExtendedRequest, error) {
 		return nil, NewError(ResultProtocolError, "invalid extended request")
 	case len(req.Packet.Children) == 2:
 		var err error
-		value, err = ber.ReadPacket(req.Packet.Children[1].Data)
+		_, value, err = ber.Parse(req.Packet.Children[1].Data)
 		if err != nil {
 			return nil, NewError(ResultProtocolError, "invalid extended request value")
 		}
@@ -69,7 +69,7 @@ func (req *ExtendedRequest) BuildPacket() *ber.Packet {
 
 // AppendTo satisfies the Request interface.
 func (req *ExtendedRequest) AppendTo(p *ber.Packet) error {
-	extReq := ber.Encode(
+	extReq := ber.NewPacket(
 		ber.ClassApplication,
 		ber.TypeConstructed,
 		ApplicationExtendedRequest.Tag(),
@@ -150,7 +150,7 @@ func NewExtendedWhoAmIHandler(f ExtendedWhoAmIHandlerFunc) ExtendedHandlerFunc {
 
 // NewExtendedPasswordModifyRequest creates an extended password modify request.
 func NewExtendedPasswordModifyRequest(id, oldPass, newPass string) (*ExtendedRequest, error) {
-	value := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "passwordModifyValue")
+	value := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "passwordModifyValue")
 	value.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, id, "userIdentity"))
 	value.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, oldPass, "oldPassword"))
 	value.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, newPass, "newPassword"))
@@ -192,7 +192,7 @@ func NewExtendedPasswordModifyHandler(f ExtendedPasswordModifyHandlerFunc) Exten
 		return &ExtendedResponse{
 			Result:    result,
 			MatchedDN: dn,
-			Value: ber.Encode(
+			Value: ber.NewPacket(
 				ber.ClassUniversal,
 				ber.TypeConstructed,
 				ber.TagSequence,

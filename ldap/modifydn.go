@@ -17,7 +17,7 @@ func (f ModifyDNHandlerFunc) ModifyDN(ctx context.Context, req *ModifyDNRequest)
 
 type ModifyDNRequest struct{}
 
-func NewModifyDNRequest(req *Request) (*ModifyDNRequest, error) {
+func ParseModifyDNRequest(req *Request) (*ModifyDNRequest, error) {
 	return &ModifyDNRequest{}, nil
 }
 

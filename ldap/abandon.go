@@ -18,7 +18,7 @@ type AbandonRequest struct {
 	ID int64
 }
 
-func NewAbandonRequest(req *Request) (*AbandonRequest, error) {
+func ParseAbandonRequest(req *Request) (*AbandonRequest, error) {
 	// abandon requests never send an error message, so ignore ...
 	var id int64
 	if len(req.Packet.Children) == 1 {

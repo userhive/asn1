@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/userhive/asn1/ldapclient"
 )
 
 func TestBindNotSupported(t *testing.T) {
@@ -20,7 +22,7 @@ func TestBindNotSupported(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,13 +41,13 @@ func TestSearchNotSupported(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	req := NewSearchRequest(
-		"dc=example,dc=com", ScopeWholeSubtree, NeverDerefAliases, 0, 0, false,
+	req := ldapclient.NewSearchRequest(
+		"dc=example,dc=com", int(ScopeWholeSubtree), int(DerefAliasesNever), 0, 0, false,
 		"(&(objectClass=organizationalPerson))",
 		[]string{"dn", "cn"},
 		nil,
@@ -66,7 +68,7 @@ func TestBind(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +89,7 @@ func TestBindBadUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +114,7 @@ func TestBindBadPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,13 +140,13 @@ func TestSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	req := NewSearchRequest(
-		"dc=example,dc=com", ScopeWholeSubtree, NeverDerefAliases, 0, 0, false,
+	req := ldapclient.NewSearchRequest(
+		"dc=example,dc=com", int(ScopeWholeSubtree), int(DerefAliasesNever), 0, 0, false,
 		"(&(objectClass=organizationalPerson))",
 		[]string{"dn", "cn"},
 		nil,
@@ -188,7 +190,7 @@ func TestExtendedWhoAmI(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +251,7 @@ func TestExtendedPasswordModify(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Shutdown(ctx)
-	conn, err := Dial("tcp", addr)
+	conn, err := ldapclient.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}

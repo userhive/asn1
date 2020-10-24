@@ -17,7 +17,7 @@ func (f DeleteHandlerFunc) Delete(ctx context.Context, req *DeleteRequest) (*Del
 
 type DeleteRequest struct{}
 
-func NewDeleteRequest(req *Request) (*DeleteRequest, error) {
+func ParseDeleteRequest(req *Request) (*DeleteRequest, error) {
 	return &DeleteRequest{}, nil
 }
 

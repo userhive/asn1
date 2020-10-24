@@ -155,7 +155,7 @@ func (h OpHandler) doBind(ctx context.Context, req *Request) (Encoder, error) {
 	if h.Auth == nil && h.Bind == nil {
 		return nil, NewError(ResultOperationsError, "bind operation not supported")
 	}
-	bindReq, err := NewBindRequest(req)
+	bindReq, err := ParseBindRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (h OpHandler) doUnbind(ctx context.Context, req *Request) (Encoder, error) 
 	if h.Unbind == nil {
 		return nil, NewError(ResultOperationsError, "unbind operation not supported")
 	}
-	unbindReq, err := NewUnbindRequest(req)
+	unbindReq, err := ParseUnbindRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (h OpHandler) doSearch(ctx context.Context, req *Request) (Encoder, error) 
 	if h.Search == nil {
 		return nil, NewError(ResultOperationsError, "search operation not supported")
 	}
-	searchReq, err := NewSearchRequest(req)
+	searchReq, err := ParseSearchRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (h OpHandler) doModify(ctx context.Context, req *Request) (Encoder, error) 
 	if h.Modify == nil {
 		return nil, NewError(ResultOperationsError, "modify operation not supported")
 	}
-	modifyReq, err := NewModifyRequest(req)
+	modifyReq, err := ParseModifyRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (h OpHandler) doAdd(ctx context.Context, req *Request) (Encoder, error) {
 	if h.Add == nil {
 		return nil, NewError(ResultOperationsError, "add opperation not supported")
 	}
-	addReq, err := NewAddRequest(req)
+	addReq, err := ParseAddRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func (h OpHandler) doDelete(ctx context.Context, req *Request) (Encoder, error) 
 	if h.Delete == nil {
 		return nil, NewError(ResultOperationsError, "delete operation not supported")
 	}
-	deleteReq, err := NewDeleteRequest(req)
+	deleteReq, err := ParseDeleteRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (h OpHandler) doModifyDN(ctx context.Context, req *Request) (Encoder, error
 	if h.ModifyDN == nil {
 		return nil, NewError(ResultOperationsError, "modifyDN operation not supported")
 	}
-	modifyDNReq, err := NewModifyDNRequest(req)
+	modifyDNReq, err := ParseModifyDNRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func (h OpHandler) doCompare(ctx context.Context, req *Request) (Encoder, error)
 	if h.Compare == nil {
 		return nil, NewError(ResultOperationsError, "compare operation not supported")
 	}
-	compareReq, err := NewCompareRequest(req)
+	compareReq, err := ParseCompareRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (h OpHandler) doAbandon(ctx context.Context, req *Request) (Encoder, error)
 	if h.Abandon == nil {
 		return nil, NewError(ResultOperationsError, "abandon operation not supported")
 	}
-	abandonReq, err := NewAbandonRequest(req)
+	abandonReq, err := ParseAbandonRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +302,7 @@ func (h OpHandler) doExtended(ctx context.Context, req *Request) (Encoder, error
 		return nil, NewError(ResultOperationsError, "extended operation not supported")
 	}
 	// ber.PrintPacket(req.Packet)
-	extendedReq, err := NewExtendedRequest(req)
+	extendedReq, err := ParseExtendedRequest(req)
 	if err != nil {
 		return nil, err
 	}

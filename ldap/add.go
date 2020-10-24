@@ -17,7 +17,7 @@ func (f AddHandlerFunc) Add(ctx context.Context, req *AddRequest) (*AddResponse,
 
 type AddRequest struct{}
 
-func NewAddRequest(req *Request) (*AddRequest, error) {
+func ParseAddRequest(req *Request) (*AddRequest, error) {
 	return &AddRequest{}, nil
 }
 

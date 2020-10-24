@@ -1,5 +1,7 @@
 package ldap
 
+//go:generate stringer -type Result -trimprefix Result
+
 import (
 	"context"
 	"encoding/hex"
@@ -19,92 +21,80 @@ type Result int
 
 // Result values.
 const (
-	ResultSuccess                            Result = 0                       // Success
-	ResultOperationsError                    Result = 1                       // Operations Error
-	ResultProtocolError                      Result = 2                       // Protocol Error
-	ResultTimeLimitExceeded                  Result = 3                       // Time Limit Exceeded
-	ResultSizeLimitExceeded                  Result = 4                       // Size Limit Exceeded
-	ResultCompareFalse                       Result = 5                       // Compare False
-	ResultCompareTrue                        Result = 6                       // Compare True
-	ResultAuthMethodNotSupported             Result = 7                       // Auth Method Not Supported
-	ResultStrongAuthRequired                 Result = 8                       // Strong Auth Required
-	ResultReferral                           Result = 10                      // Referral
-	ResultAdminLimitExceeded                 Result = 11                      // Admin Limit Exceeded
-	ResultUnavailableCriticalExtension       Result = 12                      // Unavailable Critical Extension
-	ResultConfidentialityRequired            Result = 13                      // Confidentiality Required
-	ResultSaslBindInProgress                 Result = 14                      // Sasl Bind In Progress
-	ResultNoSuchAttribute                    Result = 16                      // No Such Attribute
-	ResultUndefinedAttributeType             Result = 17                      // Undefined Attribute Type
-	ResultInappropriateMatching              Result = 18                      // Inappropriate Matching
-	ResultConstraintViolation                Result = 19                      // Constraint Violation
-	ResultAttributeOrValueExists             Result = 20                      // Attribute Or Value Exists
-	ResultInvalidAttributeSyntax             Result = 21                      // Invalid Attribute Syntax
-	ResultNoSuchObject                       Result = 32                      // No Such Object
-	ResultAliasProblem                       Result = 33                      // Alias Problem
-	ResultInvalidDNSyntax                    Result = 34                      // Invalid DN Syntax
-	ResultIsLeaf                             Result = 35                      // Is Leaf
-	ResultAliasDereferencingProblem          Result = 36                      // Alias Dereferencing Problem
-	ResultInappropriateAuthentication        Result = 48                      // Inappropriate Authentication
-	ResultInvalidCredentials                 Result = 49                      // Invalid Credentials
-	ResultInsufficientAccessRights           Result = 50                      // Insufficient Access Rights
-	ResultBusy                               Result = 51                      // Busy
-	ResultUnavailable                        Result = 52                      // Unavailable
-	ResultUnwillingToPerform                 Result = 53                      // Unwilling To Perform
-	ResultLoopDetect                         Result = 54                      // Loop Detect
-	ResultSortControlMissing                 Result = 60                      // Sort Control Missing
-	ResultOffsetRangeError                   Result = 61                      // Result Offset Range Error
-	ResultNamingViolation                    Result = 64                      // Naming Violation
-	ResultObjectClassViolation               Result = 65                      // Object Class Violation
-	ResultResultsTooLarge                    Result = 66                      // Results Too Large
-	ResultNotAllowedOnNonLeaf                Result = 67                      // Not Allowed On Non Leaf
-	ResultNotAllowedOnRDN                    Result = 68                      // Not Allowed On RDN
-	ResultEntryAlreadyExists                 Result = 69                      // Entry Already Exists
-	ResultObjectClassModsProhibited          Result = 70                      // Object Class Mods Prohibited
-	ResultAffectsMultipleDSAs                Result = 71                      // Affects Multiple DSAs
-	ResultVirtualListViewErrorOrControlError Result = 76                      // Failed because of a problem related to the virtual list view
-	ResultOther                              Result = 80                      // Other
-	ResultServerDown                         Result = 81                      // Cannot establish a connection
-	ResultLocalError                         Result = 82                      // An error occurred
-	ResultEncodingError                      Result = 83                      // LDAP encountered an error while encoding
-	ResultDecodingError                      Result = 84                      // LDAP encountered an error while decoding
-	ResultTimeout                            Result = 85                      // LDAP timeout while waiting for a response from the server
-	ResultAuthUnknown                        Result = 86                      // The auth method requested in a bind request is unknown
-	ResultFilterError                        Result = 87                      // An error occurred while encoding the given search filter
-	ResultUserCanceled                       Result = 88                      // The user canceled the operation
-	ResultParamError                         Result = 89                      // An invalid parameter was specified
-	ResultNoMemory                           Result = 90                      // Out of memory error
-	ResultConnectError                       Result = 91                      // A connection to the server could not be established
-	ResultNotSupported                       Result = 92                      // An attempt has been made to use a feature not supported LDAP
-	ResultControlNotFound                    Result = 93                      // The controls required to perform the requested operation were not found
-	ResultNoResultsReturned                  Result = 94                      // No results were returned from the server
-	ResultMoreResultsToReturn                Result = 95                      // There are more results in the chain of results
-	ResultClientLoop                         Result = 96                      // A loop has been detected. For example when following referrals
-	ResultReferralLimitExceeded              Result = 97                      // The referral hop limit has been exceeded
-	ResultCanceled                           Result = 100                     // Operation was canceled
-	ResultNoSuchOperation                    Result = 101                     // Server has no knowledge of the operation requested for cancellation
-	ResultTooLate                            Result = 112                     // Too late to cancel the outstanding operation
-	ResultCannotCancel                       Result = 113                     // The identified operation does not support cancellation or the cancel operation cannot be performed
-	ResultAssertionFailed                    Result = 114                     // An assertion control given in the LDAP operation evaluated to false causing the operation to not be performed
-	ResultSyncRefreshRequired                Result = 118                     // Refresh Required
-	ResultInvalidResponse                    Result = 119                     // Invalid Response
-	ResultAmbiguousResponse                  Result = 120                     // Ambiguous Response
-	ResultTLSNotSupported                    Result = 121                     // Tls Not Supported
-	ResultIntermediateResponse               Result = 122                     // Intermediate Response
-	ResultUnknownType                        Result = 123                     // Unknown Type
-	ResultAuthorizationDenied                Result = 4096                    // Authorization Denied
-	ResultErrNetwork                         Result = ErrorNetwork            // Network Error
-	ResultErrFilterCompile                   Result = ErrorFilterCompile      // Filter Compile Error
-	ResultErrFilterDecompile                 Result = ErrorFilterDecompile    // Filter Decompile Error
-	ResultErrDebugging                       Result = ErrorDebugging          // Debugging Error
-	ResultErrUnexpectedMessage               Result = ErrorUnexpectedMessage  // Unexpected Message
-	ResultErrUnexpectedResponse              Result = ErrorUnexpectedResponse // Unexpected Response
-	ResultErrEmptyPassword                   Result = ErrorEmptyPassword      // Empty password not allowed by the client
+	ResultSuccess                            Result = 0    // Success
+	ResultOperationsError                    Result = 1    // Operations Error
+	ResultProtocolError                      Result = 2    // Protocol Error
+	ResultTimeLimitExceeded                  Result = 3    // Time Limit Exceeded
+	ResultSizeLimitExceeded                  Result = 4    // Size Limit Exceeded
+	ResultCompareFalse                       Result = 5    // Compare False
+	ResultCompareTrue                        Result = 6    // Compare True
+	ResultAuthMethodNotSupported             Result = 7    // Auth Method Not Supported
+	ResultStrongAuthRequired                 Result = 8    // Strong Auth Required
+	ResultReferral                           Result = 10   // Referral
+	ResultAdminLimitExceeded                 Result = 11   // Admin Limit Exceeded
+	ResultUnavailableCriticalExtension       Result = 12   // Unavailable Critical Extension
+	ResultConfidentialityRequired            Result = 13   // Confidentiality Required
+	ResultSaslBindInProgress                 Result = 14   // Sasl Bind In Progress
+	ResultNoSuchAttribute                    Result = 16   // No Such Attribute
+	ResultUndefinedAttributeType             Result = 17   // Undefined Attribute Type
+	ResultInappropriateMatching              Result = 18   // Inappropriate Matching
+	ResultConstraintViolation                Result = 19   // Constraint Violation
+	ResultAttributeOrValueExists             Result = 20   // Attribute Or Value Exists
+	ResultInvalidAttributeSyntax             Result = 21   // Invalid Attribute Syntax
+	ResultNoSuchObject                       Result = 32   // No Such Object
+	ResultAliasProblem                       Result = 33   // Alias Problem
+	ResultInvalidDNSyntax                    Result = 34   // Invalid DN Syntax
+	ResultIsLeaf                             Result = 35   // Is Leaf
+	ResultAliasDereferencingProblem          Result = 36   // Alias Dereferencing Problem
+	ResultInappropriateAuthentication        Result = 48   // Inappropriate Authentication
+	ResultInvalidCredentials                 Result = 49   // Invalid Credentials
+	ResultInsufficientAccessRights           Result = 50   // Insufficient Access Rights
+	ResultBusy                               Result = 51   // Busy
+	ResultUnavailable                        Result = 52   // Unavailable
+	ResultUnwillingToPerform                 Result = 53   // Unwilling To Perform
+	ResultLoopDetect                         Result = 54   // Loop Detect
+	ResultSortControlMissing                 Result = 60   // Sort Control Missing
+	ResultOffsetRangeError                   Result = 61   // Result Offset Range Error
+	ResultNamingViolation                    Result = 64   // Naming Violation
+	ResultObjectClassViolation               Result = 65   // Object Class Violation
+	ResultResultsTooLarge                    Result = 66   // Results Too Large
+	ResultNotAllowedOnNonLeaf                Result = 67   // Not Allowed On Non Leaf
+	ResultNotAllowedOnRDN                    Result = 68   // Not Allowed On RDN
+	ResultEntryAlreadyExists                 Result = 69   // Entry Already Exists
+	ResultObjectClassModsProhibited          Result = 70   // Object Class Mods Prohibited
+	ResultAffectsMultipleDSAs                Result = 71   // Affects Multiple DSAs
+	ResultVirtualListViewErrorOrControlError Result = 76   // Failed because of a problem related to the virtual list view
+	ResultOtherError                         Result = 80   // Other
+	ResultServerDown                         Result = 81   // Cannot establish a connection
+	ResultLocalError                         Result = 82   // An error occurred
+	ResultEncodingError                      Result = 83   // LDAP encountered an error while encoding
+	ResultDecodingError                      Result = 84   // LDAP encountered an error while decoding
+	ResultTimeout                            Result = 85   // LDAP timeout while waiting for a response from the server
+	ResultAuthUnknown                        Result = 86   // The auth method requested in a bind request is unknown
+	ResultFilterError                        Result = 87   // An error occurred while encoding the given search filter
+	ResultUserCanceled                       Result = 88   // The user canceled the operation
+	ResultParamError                         Result = 89   // An invalid parameter was specified
+	ResultNoMemory                           Result = 90   // Out of memory error
+	ResultConnectError                       Result = 91   // A connection to the server could not be established
+	ResultNotSupported                       Result = 92   // An attempt has been made to use a feature not supported LDAP
+	ResultControlNotFound                    Result = 93   // The controls required to perform the requested operation were not found
+	ResultNoResultsReturned                  Result = 94   // No results were returned from the server
+	ResultMoreResultsToReturn                Result = 95   // There are more results in the chain of results
+	ResultClientLoop                         Result = 96   // A loop has been detected. For example when following referrals
+	ResultReferralLimitExceeded              Result = 97   // The referral hop limit has been exceeded
+	ResultCanceled                           Result = 100  // Operation was canceled
+	ResultNoSuchOperation                    Result = 101  // Server has no knowledge of the operation requested for cancellation
+	ResultTooLate                            Result = 112  // Too late to cancel the outstanding operation
+	ResultCannotCancel                       Result = 113  // The identified operation does not support cancellation or the cancel operation cannot be performed
+	ResultAssertionFailed                    Result = 114  // An assertion control given in the LDAP operation evaluated to false causing the operation to not be performed
+	ResultSyncRefreshRequired                Result = 118  // Refresh Required
+	ResultInvalidResponse                    Result = 119  // Invalid Response
+	ResultAmbiguousResponse                  Result = 120  // Ambiguous Response
+	ResultTLSNotSupported                    Result = 121  // Tls Not Supported
+	ResultIntermediateResponse               Result = 122  // Intermediate Response
+	ResultUnknownType                        Result = 123  // Unknown Type
+	ResultAuthorizationDenied                Result = 4096 // Authorization Denied
 )
-
-// String satisfies the fmt.Stringer interface.
-func (r Result) String() string {
-	return LDAPResultCodeMap[uint16(r)]
-}
 
 // Request is a ldap request.
 type Request struct {
@@ -117,13 +107,13 @@ type Request struct {
 
 // ReadRequest reads a request from the connection.
 func ReadRequest(conn net.Conn) (*Request, error) {
-	p, err := ber.ReadPacket(conn)
+	_, p, err := ber.Parse(conn)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Fprintf(os.Stdout, ">>>>> PACKET REQUEST\n%s\n---\n", hex.Dump(p.Bytes()))
 	spew.Dump(p)
-	ber.PrintPacket(p)
+	p.PrettyPrint(os.Stdout, 0)
 	fmt.Fprintf(os.Stdout, "<<<<< PACKET REQUEST\n")
 	// check packet
 	if len(p.Children) < 2 {
@@ -133,7 +123,7 @@ func ReadRequest(conn net.Conn) (*Request, error) {
 	if !ok {
 		return nil, ErrPacketHasInvalidMessageID
 	}
-	if p.Children[1].ClassType != ber.ClassApplication {
+	if p.Children[1].Class != ber.ClassApplication {
 		return nil, ErrPacketHasInvalidClass
 	}
 	return &Request{
@@ -212,7 +202,7 @@ func (w *responseWriter) WriteError(app Application, err error) error {
 
 // BuildMessagePacket builds a ldap message packet.
 func BuildMessagePacket(id int64, p *ber.Packet) *ber.Packet {
-	msg := ber.Encode(
+	msg := ber.NewPacket(
 		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
@@ -234,7 +224,7 @@ func BuildMessagePacket(id int64, p *ber.Packet) *ber.Packet {
 
 // BuildResultPacket builds a ldap result packet.
 func BuildResultPacket(app Application, result Result, matched, msg string) *ber.Packet {
-	p := ber.Encode(
+	p := ber.NewPacket(
 		ber.ClassApplication,
 		ber.TypeConstructed,
 		ber.Tag(app),
@@ -284,7 +274,7 @@ func BuildExtendedNameValuePacket(request bool, name ExtendedOp, value *ber.Pack
 	if value != nil {
 		tag = ber.TagEmbeddedPDV
 	}
-	p := ber.Encode(
+	p := ber.NewPacket(
 		ber.ClassContext,
 		ber.TypePrimitive,
 		tag,
@@ -301,30 +291,30 @@ func BuildExtendedNameValuePacket(request bool, name ExtendedOp, value *ber.Pack
 }
 
 // DoExtendedRequest performs an extended request against the provided context
-// and ldap conn.
+// and client.
 //
-// Note: this is defined primarily for testing purposes, as the ldap client
-// package does not provide any direct ability to send extended requests.
-func DoExtendedRequest(ctx context.Context, conn *ldapclient.Conn, req *ExtendedRequest) (*ExtendedResponse, error) {
+// Note: this is defined primarily for testing purposes, as the client does not
+// provide any direct ability to send extended requests.
+func DoExtendedRequest(ctx context.Context, cl *ldapclient.Client, req *ExtendedRequest) (*ExtendedResponse, error) {
 	//	fmt.Fprintf(os.Stdout, "--------------------------- DoExtendedRequest\n")
 	//	ber.PrintPacket(req.BuildPacket())
 	//	fmt.Fprintf(os.Stdout, "--------------------------- DoExtendedRequest\n")
-	msgCtx, err := conn.DoRequest(req)
+	msgCtx, err := cl.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.FinishMessage(msgCtx)
-	p, err := conn.ReadPacket(msgCtx)
+	defer cl.FinishMessage(msgCtx)
+	p, err := cl.ReadPacket(msgCtx)
 	if err != nil {
 		return nil, err
 	}
-	if err := GetLDAPError(p); err != nil {
+	if err := ldapclient.GetLDAPError(p); err != nil {
 		return nil, err
 	}
 	if len(p.Children) != 2 {
 		return nil, fmt.Errorf("invalid extended response (len=%d)", len(p.Children))
 	}
-	if p.Children[1].Tag != ApplicationExtendedResponse {
+	if p.Children[1].Tag != ApplicationExtendedResponse.Tag() {
 		return nil, fmt.Errorf("invalid extended response tag %d", p.Children[1].Tag)
 	}
 	n := len(p.Children[1].Children)
@@ -338,7 +328,7 @@ func DoExtendedRequest(ctx context.Context, conn *ldapclient.Conn, req *Extended
 		if p.Children[1].Children[3].Tag != ber.TagEmbeddedPDV {
 			return nil, fmt.Errorf("extended response value is not embedded pdv (tag=%d)", p.Children[1].Children[3].Tag)
 		}
-		value, err = ber.ReadPacket(p.Children[1].Children[3].Data)
+		_, value, err = ber.Parse(p.Children[1].Children[3].Data)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read extended response value: %v", err)
 		}

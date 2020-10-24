@@ -19,7 +19,7 @@ type BindRequest struct {
 	Password string
 }
 
-func NewBindRequest(req *Request) (*BindRequest, error) {
+func ParseBindRequest(req *Request) (*BindRequest, error) {
 	if len(req.Packet.Children) != 3 {
 		return nil, NewErrorf(ResultProtocolError, "invalid bind request, children missing (3 != %d)", len(req.Packet.Children))
 	}

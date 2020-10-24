@@ -17,7 +17,7 @@ func (f CompareHandlerFunc) Compare(ctx context.Context, req *CompareRequest) (*
 
 type CompareRequest struct{}
 
-func NewCompareRequest(req *Request) (*CompareRequest, error) {
+func ParseCompareRequest(req *Request) (*CompareRequest, error) {
 	return &CompareRequest{}, nil
 }
 

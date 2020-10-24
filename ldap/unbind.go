@@ -16,7 +16,7 @@ func (f UnbindHandlerFunc) Unbind(ctx context.Context, req *UnbindRequest) (*Unb
 
 type UnbindRequest struct{}
 
-func NewUnbindRequest(req *Request) (*UnbindRequest, error) {
+func ParseUnbindRequest(req *Request) (*UnbindRequest, error) {
 	return &UnbindRequest{}, nil
 }
 
