@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/userhive/asn1/ldapclient/control"
+	"github.com/userhive/asn1/ldap/control"
 )
 
 // This example demonstrates how to bind a connection to an ldap user

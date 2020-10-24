@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/userhive/asn1/ber"
-	"github.com/userhive/asn1/ldapclient/control"
+	"github.com/userhive/asn1/ldap/control"
 )
 
 // Adds descriptions to an LDAP Response packet for debugging

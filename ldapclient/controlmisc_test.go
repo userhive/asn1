@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/userhive/asn1/ber"
-	"github.com/userhive/asn1/ldapclient/control"
+	"github.com/userhive/asn1/ldap/control"
 )
 
 func TestControlPaging(t *testing.T) {

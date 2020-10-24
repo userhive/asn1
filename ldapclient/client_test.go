@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/userhive/asn1/ber"
-	"github.com/userhive/asn1/ldapclient/control"
+	"github.com/userhive/asn1/ldap/control"
 )
 
 func TestUnresponsiveConnection(t *testing.T) {

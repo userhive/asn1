@@ -21,8 +21,8 @@ import (
 
 	"github.com/Azure/go-ntlmssp"
 	"github.com/userhive/asn1/ber"
+	"github.com/userhive/asn1/ldap/control"
 	"github.com/userhive/asn1/ldap/filter"
-	"github.com/userhive/asn1/ldapclient/control"
 )
 
 // debugging type
