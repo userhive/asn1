@@ -2,9 +2,7 @@ package ldap
 
 import (
 	"context"
-	"log"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/userhive/asn1/ber"
 )
 
@@ -170,21 +168,14 @@ func NewExtendedPasswordModifyHandler(f ExtendedPasswordModifyHandlerFunc) Exten
 		if !ok {
 			return nil, NewError(ResultOperationsError, "invalid session")
 		}
-		log.Printf(">>> %d", len(req.Value.Children))
-		spew.Dump(req.Value.Children[0])
-		spew.Dump(req.Value.Children[1])
-		panic("fun")
 		if len(req.Value.Children) != 3 {
-			return nil, NewError(ResultProtocolError, "extended password request is invalid")
-		}
-		if len(req.Value.Children[0].Children) != 3 {
 			return nil, NewError(ResultProtocolError, "extended password request missing values")
 		}
 		dn := sess.get("dn").(string)
 		id, oldPass, newPass :=
-			string(readData(req.Value.Children[0].Children[0])),
-			string(readData(req.Value.Children[0].Children[1])),
-			string(readData(req.Value.Children[0].Children[2]))
+			string(readData(req.Value.Children[0])),
+			string(readData(req.Value.Children[1])),
+			string(readData(req.Value.Children[2]))
 		result, err := f(ctx, dn, id, oldPass, newPass)
 		if err != nil {
 			return nil, err

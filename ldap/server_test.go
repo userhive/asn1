@@ -289,10 +289,9 @@ func TestLDAPPasswordModify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got: %v\n%s\n", err, out)
 	}
-	t.Logf("out:\n%s", out)
-	re := regexp.MustCompile(`(?m)^u:username$`)
+	re := regexp.MustCompile(`(?m)^Result:\s+Success\s+\(0\)$`)
 	if !re.MatchString(out) {
-		t.Errorf("expected response of u:username, got:\n%s", out)
+		t.Errorf("expected response Result: Success, got:\n%s", out)
 	}
 }
 
@@ -363,7 +362,9 @@ func newTestSessionAuth(username, password string) AuthHandler {
 		username: username,
 		password: password,
 		auth: map[Application]bool{
-			ApplicationSearchRequest: true,
+			ApplicationExtendedRequest: true,
+			ApplicationModifyRequest:   false,
+			ApplicationSearchRequest:   true,
 		},
 		extended: map[ExtendedOp]bool{
 			ExtendedOpWhoAmI:         true,
