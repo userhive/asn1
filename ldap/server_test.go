@@ -257,11 +257,23 @@ func TestExtendedPasswordModify(t *testing.T) {
 	if err := conn.Bind("cn=username,dc=example,dc=com", "password"); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	req, err := NewExtendedPasswordModifyRequest("cn=username,dc=example,dc=com", "password", "newpassword")
+	req, err := NewExtendedWhoAmIRequest()
 	if err != nil {
 		t.Fatal(err)
 	}
 	res, err := DoExtendedRequest(ctx, conn, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := string(res.Value.Data.Bytes()); u != "u:username" {
+		t.Fatalf("expected u:username, got: %s", u)
+	}
+
+	req, err = NewExtendedPasswordModifyRequest("cn=username,dc=example,dc=com", "password", "newpassword")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = DoExtendedRequest(ctx, conn, req)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -399,19 +411,17 @@ func (h sessionHandler) Bind(ctx context.Context, username, password string) (Re
 }
 
 func (h sessionHandler) Auth(ctx context.Context, app Application, username string) (Result, error) {
-	result := ResultAuthorizationDenied
 	if h.auth[app] && h.username == username {
-		result = ResultSuccess
+		return ResultSuccess, nil
 	}
-	return result, nil
+	return ResultInsufficientAccessRights, nil
 }
 
 func (h sessionHandler) Extended(ctx context.Context, op ExtendedOp, username string) (Result, error) {
-	result := ResultAuthorizationDenied
 	if h.extended[op] && h.username == username {
-		result = ResultSuccess
+		return ResultSuccess, nil
 	}
-	return result, nil
+	return ResultInsufficientAccessRights, nil
 }
 
 func newTestServer(ctx context.Context, t *testing.T, h Handler) (*Server, string, error) {

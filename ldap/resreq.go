@@ -4,14 +4,11 @@ package ldap
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/userhive/asn1/ber"
 	"github.com/userhive/asn1/ldapclient"
 )
@@ -111,10 +108,6 @@ func ReadRequest(conn net.Conn) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(os.Stdout, ">>>>> PACKET REQUEST\n%s\n---\n", hex.Dump(p.Bytes()))
-	spew.Dump(p)
-	p.PrettyPrint(os.Stdout, 0)
-	fmt.Fprintf(os.Stdout, "<<<<< PACKET REQUEST\n")
 	// check packet
 	if len(p.Children) < 2 {
 		return nil, ErrPacketHasInvalidNumberOfChildren
@@ -160,7 +153,6 @@ func NewResponseWriter(w io.Writer, id int64) ResponseWriter {
 
 // WriteRaw writes raw bytes.
 func (w *responseWriter) WriteRaw(buf []byte) error {
-	// fmt.Fprintf(os.Stdout, ">>> WRITING\n%s\n<<<", hex.Dump(buf))
 	if conn, ok := w.w.(interface {
 		SetWriteDeadline(time.Time) error
 	}); ok {

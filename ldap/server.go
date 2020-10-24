@@ -53,7 +53,8 @@ type Session struct {
 }
 
 // NewSession creates a new session
-func NewSession(id string) *Session {
+func NewSession(conn net.Conn) *Session {
+	id := fmt.Sprintf("%x", md5.Sum([]byte(conn.LocalAddr().String()+"::"+conn.RemoteAddr().String())))
 	return &Session{
 		count: 0,
 		id:    id,
@@ -137,7 +138,7 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 		}
 		s.mu.Lock()
 		if s.sessions[conn] == nil {
-			s.sessions[conn] = NewSession(fmt.Sprintf("%x", md5.Sum([]byte(conn.LocalAddr().String()+"::"+conn.RemoteAddr().String()))))
+			s.sessions[conn] = NewSession(conn)
 		}
 		s.mu.Unlock()
 		go s.serve(context.WithValue(ctx, sessionKey, s.sessions[conn]), conn)
