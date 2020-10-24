@@ -62,11 +62,11 @@ func runControlTest(t *testing.T, originalControl control.Control) {
 		t.Errorf("%sgot different type decoding from encoded packet: %T vs %T", header, fromPacket, originalControl)
 	}
 	// Decode from the wire bytes (ensures ber-encoding is correct)
-	pkt, err := ber.ParseBytes(encodedBytes)
+	p, err := ber.ParseBytes(encodedBytes)
 	if err != nil {
 		t.Errorf("%sdecoding encoded bytes failed: %s", header, err)
 	}
-	fromBytes, err := control.Decode(pkt)
+	fromBytes, err := control.Decode(p)
 	if err != nil {
 		t.Errorf("%sdecoding control failed: %s", header, err)
 	}

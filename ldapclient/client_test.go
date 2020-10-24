@@ -222,7 +222,7 @@ func (c *packetTranslatorConn) Read(b []byte) (n int, err error) {
 
 // SendResponse writes the given response packet to the response buffer for
 // this connection, signalling any goroutine waiting to read a response.
-func (c *packetTranslatorConn) SendResponse(packet *ber.Packet) error {
+func (c *packetTranslatorConn) SendResponse(p *ber.Packet) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.isClosed {
@@ -231,7 +231,7 @@ func (c *packetTranslatorConn) SendResponse(packet *ber.Packet) error {
 	// Signal any goroutine waiting to read a response.
 	defer c.responseCond.Broadcast()
 	// Writes to the buffer should always succeed.
-	c.responseBuf.Write(packet.Bytes())
+	c.responseBuf.Write(p.Bytes())
 	return nil
 }
 

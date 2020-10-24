@@ -1,7 +1,6 @@
 package filter
 
 //go:generate stringer -type Filter -trimprefix Filter
-
 import (
 	"bytes"
 	hexpac "encoding/hex"
@@ -50,7 +49,7 @@ func Compile(filter string) (*ber.Packet, error) {
 	if len(filter) == 0 || filter[0] != '(' {
 		return nil, Error{"filter does not start with an '('"}
 	}
-	packet, pos, err := compile(filter, 1)
+	p, pos, err := compile(filter, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -60,11 +59,11 @@ func Compile(filter string) (*ber.Packet, error) {
 	case pos < len(filter):
 		return nil, Errorf("finished compiling filter with extra at end: %s", filter[pos:])
 	}
-	return packet, nil
+	return p, nil
 }
 
 // Decompile converts a packet representation of a filter into a string representation
-func Decompile(packet *ber.Packet) (_ string, err error) {
+func Decompile(p *ber.Packet) (_ string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = Error{"error decompiling filter"}
@@ -73,10 +72,10 @@ func Decompile(packet *ber.Packet) (_ string, err error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteByte('(')
 	childStr := ""
-	switch packet.Tag {
+	switch p.Tag {
 	case And:
 		buf.WriteByte('&')
-		for _, child := range packet.Children {
+		for _, child := range p.Children {
 			childStr, err = Decompile(child)
 			if err != nil {
 				return
@@ -85,7 +84,7 @@ func Decompile(packet *ber.Packet) (_ string, err error) {
 		}
 	case Or:
 		buf.WriteByte('|')
-		for _, child := range packet.Children {
+		for _, child := range p.Children {
 			childStr, err = Decompile(child)
 			if err != nil {
 				return
@@ -94,15 +93,15 @@ func Decompile(packet *ber.Packet) (_ string, err error) {
 		}
 	case Not:
 		buf.WriteByte('!')
-		childStr, err = Decompile(packet.Children[0])
+		childStr, err = Decompile(p.Children[0])
 		if err != nil {
 			return
 		}
 		buf.WriteString(childStr)
 	case Substrings:
-		buf.WriteString(string(packet.Children[0].Data.Bytes()))
+		buf.WriteString(string(p.Children[0].Data.Bytes()))
 		buf.WriteByte('=')
-		for i, child := range packet.Children[1].Children {
+		for i, child := range p.Children[1].Children {
 			if i == 0 && child.Tag != SubstringsInitial {
 				buf.Write(any)
 			}
@@ -112,30 +111,30 @@ func Decompile(packet *ber.Packet) (_ string, err error) {
 			}
 		}
 	case EqualityMatch:
-		buf.WriteString(string(packet.Children[0].Data.Bytes()))
+		buf.WriteString(string(p.Children[0].Data.Bytes()))
 		buf.WriteByte('=')
-		buf.WriteString(Escape(string(packet.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
 	case GreaterOrEqual:
-		buf.WriteString(string(packet.Children[0].Data.Bytes()))
+		buf.WriteString(string(p.Children[0].Data.Bytes()))
 		buf.WriteString(">=")
-		buf.WriteString(Escape(string(packet.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
 	case LessOrEqual:
-		buf.WriteString(string(packet.Children[0].Data.Bytes()))
+		buf.WriteString(string(p.Children[0].Data.Bytes()))
 		buf.WriteString("<=")
-		buf.WriteString(Escape(string(packet.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
 	case Present:
-		buf.WriteString(string(packet.Data.Bytes()))
+		buf.WriteString(string(p.Data.Bytes()))
 		buf.WriteString("=*")
 	case ApproxMatch:
-		buf.WriteString(string(packet.Children[0].Data.Bytes()))
+		buf.WriteString(string(p.Children[0].Data.Bytes()))
 		buf.WriteString("~=")
-		buf.WriteString(Escape(string(packet.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
 	case ExtensibleMatch:
 		attr := ""
 		dnAttributes := false
 		matchingRule := ""
 		value := ""
-		for _, child := range packet.Children {
+		for _, child := range p.Children {
 			switch child.Tag {
 			case RuleMatchingRule:
 				matchingRule = string(child.Data.Bytes())
@@ -176,14 +175,13 @@ func compileSet(filter string, pos int, parent *ber.Packet) (int, error) {
 	if pos == len(filter) {
 		return pos, Error{"unexpected end of filter"}
 	}
-
 	return pos + 1, nil
 }
 
 func compile(filter string, pos int) (*ber.Packet, int, error) {
 	var (
-		packet *ber.Packet
-		err    error
+		p   *ber.Packet
+		err error
 	)
 	defer func() {
 		if r := recover(); r != nil {
@@ -196,23 +194,23 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 	case utf8.RuneError:
 		return nil, 0, Errorf("error reading rune at position %d", newPos)
 	case '(':
-		packet, newPos, err = compile(filter, pos+currentWidth)
+		p, newPos, err = compile(filter, pos+currentWidth)
 		newPos++
-		return packet, newPos, err
+		return p, newPos, err
 	case '&':
-		packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, And, nil, And.String())
-		newPos, err = compileSet(filter, pos+currentWidth, packet)
-		return packet, newPos, err
+		p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, And, nil, And.String())
+		newPos, err = compileSet(filter, pos+currentWidth, p)
+		return p, newPos, err
 	case '|':
-		packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, Or, nil, Or.String())
-		newPos, err = compileSet(filter, pos+currentWidth, packet)
-		return packet, newPos, err
+		p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, Or, nil, Or.String())
+		newPos, err = compileSet(filter, pos+currentWidth, p)
+		return p, newPos, err
 	case '!':
-		packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, Not, nil, Not.String())
+		p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, Not, nil, Not.String())
 		var child *ber.Packet
 		child, newPos, err = compile(filter, pos+currentWidth)
-		packet.AppendChild(child)
-		return packet, newPos, err
+		p.AppendChild(child)
+		return p, newPos, err
 	default:
 		const (
 			stateReadingAttr                   = 0
@@ -231,133 +229,113 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 				break
 			}
 			if currentRune == utf8.RuneError {
-				return packet, newPos, Errorf("error reading rune at position %d", newPos)
+				return p, newPos, Errorf("error reading rune at position %d", newPos)
 			}
-
 			switch state {
 			case stateReadingAttr:
 				switch {
 				// Extensible rule, with only DN-matching
 				case currentRune == ':' && strings.HasPrefix(remaining, ":dn:="):
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
 					extensibleDNAttributes = true
 					state = stateReadingCondition
 					newPos += 5
-
 				// Extensible rule, with DN-matching and a matching OID
 				case currentRune == ':' && strings.HasPrefix(remaining, ":dn:"):
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
 					extensibleDNAttributes = true
 					state = stateReadingExtensibleMatchingRule
 					newPos += 4
-
 				// Extensible rule, with attr only
 				case currentRune == ':' && strings.HasPrefix(remaining, ":="):
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
 					state = stateReadingCondition
 					newPos += 2
-
 				// Extensible rule, with no DN attribute matching
 				case currentRune == ':':
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
 					state = stateReadingExtensibleMatchingRule
 					newPos++
-
 				// Equality condition
 				case currentRune == '=':
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, EqualityMatch, nil, EqualityMatch.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, EqualityMatch, nil, EqualityMatch.String())
 					state = stateReadingCondition
 					newPos++
-
 				// Greater-than or equal
 				case currentRune == '>' && strings.HasPrefix(remaining, ">="):
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, GreaterOrEqual, nil, GreaterOrEqual.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, GreaterOrEqual, nil, GreaterOrEqual.String())
 					state = stateReadingCondition
 					newPos += 2
-
 				// Less-than or equal
 				case currentRune == '<' && strings.HasPrefix(remaining, "<="):
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, LessOrEqual, nil, LessOrEqual.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, LessOrEqual, nil, LessOrEqual.String())
 					state = stateReadingCondition
 					newPos += 2
-
 				// Approx
 				case currentRune == '~' && strings.HasPrefix(remaining, "~="):
-					packet = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ApproxMatch, nil, ApproxMatch.String())
+					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ApproxMatch, nil, ApproxMatch.String())
 					state = stateReadingCondition
 					newPos += 2
-
 				// Still reading the attribute name
 				default:
 					attribute.WriteRune(currentRune)
 					newPos += currentWidth
 				}
-
 			case stateReadingExtensibleMatchingRule:
 				switch {
-
 				// Matching rule OID is done
 				case currentRune == ':' && strings.HasPrefix(remaining, ":="):
 					state = stateReadingCondition
 					newPos += 2
-
 				// Still reading the matching rule oid
 				default:
 					extensibleMatchingRule.WriteRune(currentRune)
 					newPos += currentWidth
 				}
-
 			case stateReadingCondition:
 				// append to the condition
 				condition.WriteRune(currentRune)
 				newPos += currentWidth
 			}
 		}
-
 		if newPos == len(filter) {
-			return packet, newPos, Error{"unexpected end of filter"}
+			return p, newPos, Error{"unexpected end of filter"}
 		}
-		if packet == nil {
-			return packet, newPos, Error{"error parsing filter"}
+		if p == nil {
+			return p, newPos, Error{"error parsing filter"}
 		}
-
 		switch {
-		case packet.Tag == ExtensibleMatch:
+		case p.Tag == ExtensibleMatch:
 			// Rule ::= SEQUENCE {
 			//         matchingRule    [1] MatchingRuleID OPTIONAL,
 			//         type            [2] AttributeDescription OPTIONAL,
 			//         matchValue      [3] AssertionValue,
 			//         dnAttributes    [4] BOOLEAN DEFAULT FALSE
 			// }
-
 			// Include the matching rule oid, if specified
 			if extensibleMatchingRule.Len() > 0 {
-				packet.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleMatchingRule, extensibleMatchingRule.String(), RuleMatchingRule.String()))
+				p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleMatchingRule, extensibleMatchingRule.String(), RuleMatchingRule.String()))
 			}
-
 			// Include the attribute, if specified
 			if attribute.Len() > 0 {
-				packet.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleType, attribute.String(), RuleType.String()))
+				p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleType, attribute.String(), RuleType.String()))
 			}
-
 			// Add the value (only required child)
 			encodedString, encodeErr := Unescape(condition.Bytes())
 			if encodeErr != nil {
-				return packet, newPos, encodeErr
+				return p, newPos, encodeErr
 			}
-			packet.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleMatchValue, encodedString, RuleMatchValue.String()))
-
+			p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleMatchValue, encodedString, RuleMatchValue.String()))
 			// Defaults to false, so only include in the sequence if true
 			if extensibleDNAttributes {
-				packet.AppendChild(ber.NewBoolean(ber.ClassContext, ber.TypePrimitive, RuleDNAttributes, extensibleDNAttributes, RuleDNAttributes.String()))
+				p.AppendChild(ber.NewBoolean(ber.ClassContext, ber.TypePrimitive, RuleDNAttributes, extensibleDNAttributes, RuleDNAttributes.String()))
 			}
-
-		case packet.Tag == EqualityMatch && bytes.Equal(condition.Bytes(), any):
-			packet = ber.NewString(ber.ClassContext, ber.TypePrimitive, Present, attribute.String(), Present.String())
-		case packet.Tag == EqualityMatch && bytes.Index(condition.Bytes(), any) > -1:
-			packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute.String(), "Attribute"))
-			packet.Tag = Substrings
-			packet.Desc = packet.Tag.String()
+		case p.Tag == EqualityMatch && bytes.Equal(condition.Bytes(), any):
+			p = ber.NewString(ber.ClassContext, ber.TypePrimitive, Present, attribute.String(), Present.String())
+		case p.Tag == EqualityMatch && bytes.Index(condition.Bytes(), any) > -1:
+			p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute.String(), "Attribute"))
+			p.Tag = Substrings
+			p.Desc = p.Tag.String()
 			seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Substrings")
 			parts := bytes.Split(condition.Bytes(), any)
 			for i, part := range parts {
@@ -375,21 +353,21 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 				}
 				encodedString, encodeErr := Unescape(part)
 				if encodeErr != nil {
-					return packet, newPos, encodeErr
+					return p, newPos, encodeErr
 				}
 				seq.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, tag, encodedString, tag.String()))
 			}
-			packet.AppendChild(seq)
+			p.AppendChild(seq)
 		default:
 			encodedString, encodeErr := Unescape(condition.Bytes())
 			if encodeErr != nil {
-				return packet, newPos, encodeErr
+				return p, newPos, encodeErr
 			}
-			packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute.String(), "Attribute"))
-			packet.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, encodedString, "Condition"))
+			p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute.String(), "Attribute"))
+			p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, encodedString, "Condition"))
 		}
 		newPos += currentWidth
-		return packet, newPos, err
+		return p, newPos, err
 	}
 }
 

@@ -42,9 +42,9 @@ func (debug debugging) Printf(format string, args ...interface{}) {
 }
 
 // PrintPacket dumps a packet.
-func (debug debugging) PrintPacket(packet *ber.Packet) {
+func (debug debugging) PrintPacket(p *ber.Packet) {
 	if debug {
-		packet.PrettyPrint(os.Stdout, 0)
+		p.PrettyPrint(os.Stdout, 0)
 	}
 }
 
@@ -87,9 +87,9 @@ type MessageContext struct {
 
 // SendResponse should only be called within the processMessages() loop which
 // is also responsible for closing the responses channel.
-func (msgCtx *MessageContext) SendResponse(packet *PacketResponse) {
+func (msgCtx *MessageContext) SendResponse(res *PacketResponse) {
 	select {
-	case msgCtx.responses <- packet:
+	case msgCtx.responses <- res:
 		// Successfully sent packet to message handler.
 	case <-msgCtx.done:
 		// The request handler is done and will not receive more
@@ -359,11 +359,11 @@ func (cl *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 	return tc.ConnectionState(), true
 }
 
-func (cl *Client) SendMessage(packet *ber.Packet) (*MessageContext, error) {
-	return cl.SendMessageWithFlags(packet, 0)
+func (cl *Client) SendMessage(p *ber.Packet) (*MessageContext, error) {
+	return cl.SendMessageWithFlags(p, 0)
 }
 
-func (cl *Client) SendMessageWithFlags(packet *ber.Packet, flags SendMessageFlags) (*MessageContext, error) {
+func (cl *Client) SendMessageWithFlags(p *ber.Packet, flags SendMessageFlags) (*MessageContext, error) {
 	if cl.IsClosing() {
 		return nil, NewError(ErrorNetwork, errors.New("ldap: connection closed"))
 	}
@@ -383,11 +383,11 @@ func (cl *Client) SendMessageWithFlags(packet *ber.Packet, flags SendMessageFlag
 	cl.outstandingRequests++
 	cl.messageMutex.Unlock()
 	responses := make(chan *PacketResponse)
-	messageID := packet.Children[0].Value.(int64)
+	messageID := p.Children[0].Value.(int64)
 	message := &messagePacket{
 		Op:        MessageRequest,
 		MessageID: messageID,
-		Packet:    packet,
+		Packet:    p,
 		Context: &MessageContext{
 			id:        messageID,
 			done:      make(chan struct{}),

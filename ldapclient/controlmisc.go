@@ -8,29 +8,29 @@ import (
 )
 
 // Adds descriptions to an LDAP Response packet for debugging
-func AddLDAPDescriptions(packet *ber.Packet) (err error) {
+func AddLDAPDescriptions(p *ber.Packet) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ldap: cannot process packet to add descriptions: %s", r)
 		}
 	}()
-	packet.Desc = "LDAP Response"
-	packet.Children[0].Desc = "Message ID"
-	application := Application(packet.Children[1].Tag)
-	packet.Children[1].Desc = application.String()
+	p.Desc = "LDAP Response"
+	p.Children[0].Desc = "Message ID"
+	application := Application(p.Children[1].Tag)
+	p.Children[1].Desc = application.String()
 	switch application {
 	case ApplicationBindRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationBindResponse:
-		err = AddDefaultLDAPResponseDescriptions(packet)
+		err = AddDefaultLDAPResponseDescriptions(p)
 	case ApplicationUnbindRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationSearchRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationSearchResultEntry:
-		packet.Children[1].Children[0].Desc = "Object Name"
-		packet.Children[1].Children[1].Desc = "Attributes"
-		for _, child := range packet.Children[1].Children[1].Children {
+		p.Children[1].Children[0].Desc = "Object Name"
+		p.Children[1].Children[1].Desc = "Attributes"
+		for _, child := range p.Children[1].Children[1].Children {
 			child.Desc = "Attribute"
 			child.Children[0].Desc = "Attribute Name"
 			child.Children[1].Desc = "Attribute Values"
@@ -38,39 +38,39 @@ func AddLDAPDescriptions(packet *ber.Packet) (err error) {
 				grandchild.Desc = "Attribute Value"
 			}
 		}
-		if len(packet.Children) == 3 {
-			err = AddControlDescriptions(packet.Children[2])
+		if len(p.Children) == 3 {
+			err = AddControlDescriptions(p.Children[2])
 		}
 	case ApplicationSearchResultDone:
-		err = AddDefaultLDAPResponseDescriptions(packet)
+		err = AddDefaultLDAPResponseDescriptions(p)
 	case ApplicationModifyRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationModifyResponse:
 	case ApplicationAddRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationAddResponse:
 	case ApplicationDeleteRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationDeleteResponse:
 	case ApplicationModifyDNRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationModifyDNResponse:
 	case ApplicationCompareRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationCompareResponse:
 	case ApplicationAbandonRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationSearchResultReference:
 	case ApplicationExtendedRequest:
-		err = AddRequestDescriptions(packet)
+		err = AddRequestDescriptions(p)
 	case ApplicationExtendedResponse:
 	}
 	return err
 }
 
-func AddControlDescriptions(packet *ber.Packet) error {
-	packet.Desc = "Controls"
-	for _, child := range packet.Children {
+func AddControlDescriptions(p *ber.Packet) error {
+	p.Desc = "Controls"
+	for _, child := range p.Children {
 		var value *ber.Packet
 		controlType := ""
 		child.Desc = "Control"
@@ -168,33 +168,33 @@ func AddControlDescriptions(packet *ber.Packet) error {
 	return nil
 }
 
-func AddRequestDescriptions(packet *ber.Packet) error {
-	packet.Desc = "LDAP Request"
-	packet.Children[0].Desc = "Message ID"
-	packet.Children[1].Desc = packet.Children[1].Tag.String()
-	if len(packet.Children) == 3 {
-		return AddControlDescriptions(packet.Children[2])
+func AddRequestDescriptions(p *ber.Packet) error {
+	p.Desc = "LDAP Request"
+	p.Children[0].Desc = "Message ID"
+	p.Children[1].Desc = p.Children[1].Tag.String()
+	if len(p.Children) == 3 {
+		return AddControlDescriptions(p.Children[2])
 	}
 	return nil
 }
 
-func AddDefaultLDAPResponseDescriptions(packet *ber.Packet) error {
+func AddDefaultLDAPResponseDescriptions(p *ber.Packet) error {
 	resultCode := uint16(ResultSuccess)
 	matchedDN := ""
 	description := "Success"
-	if err := GetLDAPError(packet); err != nil {
+	if err := GetLDAPError(p); err != nil {
 		resultCode = err.(*Error).ResultCode
 		matchedDN = err.(*Error).MatchedDN
 		description = "Error Message"
 	}
-	packet.Children[1].Children[0].Desc = "Result Code (" + ResultCodeMap[resultCode] + ")"
-	packet.Children[1].Children[1].Desc = "Matched DN (" + matchedDN + ")"
-	packet.Children[1].Children[2].Desc = description
-	if len(packet.Children[1].Children) > 3 {
-		packet.Children[1].Children[3].Desc = "Referral"
+	p.Children[1].Children[0].Desc = "Result Code (" + ResultCodeMap[resultCode] + ")"
+	p.Children[1].Children[1].Desc = "Matched DN (" + matchedDN + ")"
+	p.Children[1].Children[2].Desc = description
+	if len(p.Children[1].Children) > 3 {
+		p.Children[1].Children[3].Desc = "Referral"
 	}
-	if len(packet.Children) == 3 {
-		return AddControlDescriptions(packet.Children[2])
+	if len(p.Children) == 3 {
+		return AddControlDescriptions(p.Children[2])
 	}
 	return nil
 }
