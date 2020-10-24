@@ -35,22 +35,22 @@ func TestUnresponsiveConnection(t *testing.T) {
 	cl.Start()
 	defer cl.Close()
 	// Mock a packet
-	packet := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
-	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
+	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
+	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
 	bindRequest := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
 	bindRequest.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
-	packet.AppendChild(bindRequest)
+	p.AppendChild(bindRequest)
 	// Send packet and test response
-	msgCtx, err := cl.SendMessage(packet)
+	msgCtx, err := cl.SendMessage(p)
 	if err != nil {
 		t.Fatalf("error sending message: %v", err)
 	}
 	defer cl.FinishMessage(msgCtx)
-	packetResponse, ok := <-msgCtx.responses
+	res, ok := <-msgCtx.responses
 	if !ok {
 		t.Fatalf("no PacketResponse in response channel")
 	}
-	packet, err = packetResponse.ReadPacket()
+	p, err = res.ReadPacket()
 	if err == nil {
 		t.Fatalf("expected timeout error")
 	}
@@ -105,11 +105,11 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCt
 	runWithTimeout(t, time.Second, func() {
 		msgID = cl.nextMessageID()
 	})
-	requestPacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
-	requestPacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgID, "MessageID"))
+	req := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
+	req.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgID, "MessageID"))
 	var err error
 	runWithTimeout(t, time.Second, func() {
-		msgCtx, err = cl.SendMessage(requestPacket)
+		msgCtx, err = cl.SendMessage(req)
 		if err != nil {
 			t.Fatalf("unable to send request message: %s", err)
 		}
@@ -126,10 +126,10 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCt
 
 func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *MessageContext) {
 	// Send a mock response packet.
-	responsePacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-	responsePacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
+	res := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
+	res.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
 	runWithTimeout(t, time.Second, func() {
-		if err := ptc.SendResponse(responsePacket); err != nil {
+		if err := ptc.SendResponse(res); err != nil {
 			t.Fatalf("unable to send response packet: %s", err)
 		}
 	})
@@ -143,13 +143,13 @@ func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *Messag
 
 func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn, cl *Client, msgCtx *MessageContext, numResponses int) {
 	// Send a mock response packet.
-	responsePacket := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-	responsePacket.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
+	res := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
+	res.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
 	// Send extra responses but do not attempt to receive them on the
 	// client side.
 	for i := 0; i < numResponses; i++ {
 		runWithTimeout(t, time.Second, func() {
-			if err := ptc.SendResponse(responsePacket); err != nil {
+			if err := ptc.SendResponse(res); err != nil {
 				t.Fatalf("unable to send response packet: %s", err)
 			}
 		})
@@ -257,16 +257,16 @@ func (c *packetTranslatorConn) ReceiveRequest() (*ber.Packet, error) {
 	for !c.isClosed {
 		// Attempt to parse a request packet from the request buffer.
 		// If it fails with an unexpected EOF, wait and try again.
-		requestReader := bytes.NewReader(c.requestBuf.Bytes())
-		_, packet, err := ber.Parse(requestReader)
+		r := bytes.NewBuffer(c.requestBuf.Bytes())
+		_, p, err := ber.Parse(r)
 		switch err {
 		case io.EOF, io.ErrUnexpectedEOF, ber.ErrUnexpectedEOF:
 			c.requestCond.Wait()
 		case nil:
 			// Advance the request buffer by the number of bytes
 			// read to decode the request packet.
-			c.requestBuf.Next(c.requestBuf.Len() - requestReader.Len())
-			return packet, nil
+			c.requestBuf.Next(c.requestBuf.Len() - r.Len())
+			return p, nil
 		default:
 			return nil, err
 		}
@@ -355,10 +355,10 @@ func TestGetLDAPError(t *testing.T) {
 	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(ResultInvalidCredentials), "resultCode"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "dc=example,dc=org", "matchedDN"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, diagnosticMessage, "diagnosticMessage"))
-	packet := ber.NewSequence("LDAPMessage")
-	packet.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
-	packet.AppendChild(bindResponse)
-	err := GetLDAPError(packet)
+	p := ber.NewSequence("LDAPMessage")
+	p.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
+	p.AppendChild(bindResponse)
+	err := GetLDAPError(p)
 	if err == nil {
 		t.Errorf("Did not get error response")
 	}
@@ -378,10 +378,10 @@ func TestGetLDAPErrorSuccess(t *testing.T) {
 	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "resultCode"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "matchedDN"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "diagnosticMessage"))
-	packet := ber.NewSequence("LDAPMessage")
-	packet.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
-	packet.AppendChild(bindResponse)
-	err := GetLDAPError(packet)
+	p := ber.NewSequence("LDAPMessage")
+	p.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
+	p.AppendChild(bindResponse)
+	err := GetLDAPError(p)
 	if err != nil {
 		t.Errorf("Successful responses should not produce an error, but got: %v", err)
 	}

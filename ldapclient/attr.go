@@ -91,11 +91,11 @@ func ParseDN(str string) (*DN, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode BER encoding: %s", err)
 				}
-				packet, err := ber.ParseBytes(rawBER)
+				p, err := ber.ParseBytes(rawBER)
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode BER packet: %s", err)
 				}
-				buffer.WriteString(packet.Data.String())
+				buffer.WriteString(p.Data.String())
 				i += len(data) - 1
 			}
 		case char == ',' || char == '+':
