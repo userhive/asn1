@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+
+	"github.com/userhive/asn1/ldapclient/control"
 )
 
 // This example demonstrates how to bind a connection to an ldap user
@@ -199,14 +201,16 @@ func Example_beherappolicy() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-	controls := []Control{}
-	controls = append(controls, NewControlBeheraPasswordPolicy())
-	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", controls)
+	controls := []control.Control{
+		control.NewControlBeheraPasswordPolicy(),
+	}
+	controls = append(controls)
+	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", controls...)
 	r, err := l.SimpleBind(bindRequest)
-	ppolicyControl := FindControl(r.Controls, ControlTypeBeheraPasswordPolicy)
-	var ppolicy *ControlBeheraPasswordPolicy
+	ppolicyControl := control.Find(r.Controls, control.OIDBeheraPasswordPolicy)
+	var ppolicy *control.ControlBeheraPasswordPolicy
 	if ppolicyControl != nil {
-		ppolicy = ppolicyControl.(*ControlBeheraPasswordPolicy)
+		ppolicy = ppolicyControl.(*control.ControlBeheraPasswordPolicy)
 	} else {
 		log.Printf("ppolicyControl response not available.\n")
 	}
@@ -238,18 +242,18 @@ func Example_vchuppolicy() {
 	l.Debug = true
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", nil)
 	r, err := l.SimpleBind(bindRequest)
-	passwordMustChangeControl := FindControl(r.Controls, ControlTypeVChuPasswordMustChange)
-	var passwordMustChange *ControlVChuPasswordMustChange
+	passwordMustChangeControl := control.Find(r.Controls, control.OIDVChuPasswordMustChange)
+	var passwordMustChange *control.ControlVChuPasswordMustChange
 	if passwordMustChangeControl != nil {
-		passwordMustChange = passwordMustChangeControl.(*ControlVChuPasswordMustChange)
+		passwordMustChange = passwordMustChangeControl.(*control.ControlVChuPasswordMustChange)
 	}
 	if passwordMustChange != nil && passwordMustChange.MustChange {
 		log.Printf("Password Must be changed.\n")
 	}
-	passwordWarningControl := FindControl(r.Controls, ControlTypeVChuPasswordWarning)
-	var passwordWarning *ControlVChuPasswordWarning
+	passwordWarningControl := control.Find(r.Controls, control.OIDVChuPasswordWarning)
+	var passwordWarning *control.ControlVChuPasswordWarning
 	if passwordWarningControl != nil {
-		passwordWarning = passwordWarningControl.(*ControlVChuPasswordWarning)
+		passwordWarning = passwordWarningControl.(*control.ControlVChuPasswordWarning)
 	} else {
 		log.Printf("ppolicyControl response not available.\n")
 	}
@@ -277,11 +281,11 @@ func ExampleControlPaging_manualPaging() {
 	var pageSize uint32 = 32
 	searchBase := "dc=example,dc=com"
 	filter := "(objectClass=group)"
-	pagingControl := NewControlPaging(pageSize)
+	pagingControl := control.NewControlPaging(pageSize)
 	attributes := []string{}
-	controls := []Control{pagingControl}
+	controls := []control.Control{pagingControl}
 	for {
-		request := NewSearchRequest(searchBase, ScopeWholeSubtree, DerefAlways, 0, 0, false, filter, attributes, controls)
+		request := NewSearchRequest(searchBase, ScopeWholeSubtree, DerefAlways, 0, 0, false, filter, attributes, controls...)
 		response, err := conn.Search(request)
 		if err != nil {
 			log.Fatalf("Failed to execute search request: %s", err.Error())
@@ -290,8 +294,8 @@ func ExampleControlPaging_manualPaging() {
 		// In order to prepare the next request, we check if the response
 		// contains another ControlPaging object and a not-empty cookie and
 		// copy that cookie into our pagingControl object:
-		updatedControl := FindControl(response.Controls, ControlTypePaging)
-		if ctrl, ok := updatedControl.(*ControlPaging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
+		updatedControl := control.Find(response.Controls, control.OIDPaging)
+		if ctrl, ok := updatedControl.(*control.ControlPaging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
 			pagingControl.SetCookie(ctrl.Cookie)
 			continue
 		}
