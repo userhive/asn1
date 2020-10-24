@@ -3,7 +3,7 @@ package filter
 //go:generate stringer -type Filter -trimprefix Filter
 import (
 	"bytes"
-	hexpac "encoding/hex"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
@@ -62,23 +62,28 @@ func Compile(filter string) (*ber.Packet, error) {
 	return p, nil
 }
 
-// Decompile converts a packet representation of a filter into a string representation
-func Decompile(p *ber.Packet) (_ string, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = Error{"error decompiling filter"}
-		}
-	}()
-	buf := bytes.NewBuffer(nil)
+// Decompile converts a packet representation of a filter into a string
+// representation
+func Decompile(p *ber.Packet) (string, error) {
+	/*
+		defer func() {
+			if r := recover(); r != nil {
+				err = Error{"error decompiling filter"}
+			}
+		}()
+	*/
+	buf := new(bytes.Buffer)
 	buf.WriteByte('(')
-	childStr := ""
+
+	var err error
+	var childStr string
 	switch p.Tag {
 	case And:
 		buf.WriteByte('&')
 		for _, child := range p.Children {
 			childStr, err = Decompile(child)
 			if err != nil {
-				return
+				return "", err
 			}
 			buf.WriteString(childStr)
 		}
@@ -87,7 +92,7 @@ func Decompile(p *ber.Packet) (_ string, err error) {
 		for _, child := range p.Children {
 			childStr, err = Decompile(child)
 			if err != nil {
-				return
+				return "", err
 			}
 			buf.WriteString(childStr)
 		}
@@ -95,7 +100,7 @@ func Decompile(p *ber.Packet) (_ string, err error) {
 		buf.WriteByte('!')
 		childStr, err = Decompile(p.Children[0])
 		if err != nil {
-			return
+			return "", err
 		}
 		buf.WriteString(childStr)
 	case Substrings:
@@ -183,11 +188,6 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 		p   *ber.Packet
 		err error
 	)
-	defer func() {
-		if r := recover(); r != nil {
-			err = Error{"error compiling filter"}
-		}
-	}()
 	newPos := pos
 	currentRune, currentWidth := utf8.DecodeRuneInString(filter[newPos:])
 	switch currentRune {
@@ -399,12 +399,12 @@ func Unescape(src []byte) (string, error) {
 				byteVal = make([]byte, 1)
 			}
 			if _, err := io.ReadFull(reader, byteHex); err != nil {
-				if err == io.ErrUnexpectedEOF {
+				if err == io.ErrUnexpectedEOF || err == ber.ErrUnexpectedEOF {
 					return "", Error{"missing characters for escape in filter"}
 				}
 				return "", Errorf("invalid characters for escape in filter: %v", err)
 			}
-			if _, err := hexpac.Decode(byteVal, byteHex); err != nil {
+			if _, err := hex.Decode(byteVal, byteHex); err != nil {
 				return "", Errorf("invalid characters for escape in filter: %v", err)
 			}
 			buffer.Write(byteVal)
@@ -432,8 +432,8 @@ func Escape(filter string) string {
 		c := filter[i]
 		if mustEscape(c) {
 			buf[j+0] = '\\'
-			buf[j+1] = hex[c>>4]
-			buf[j+2] = hex[c&0xf]
+			buf[j+1] = hexchars[c>>4]
+			buf[j+2] = hexchars[c&0xf]
 			j += 3
 		} else {
 			buf[j] = c
@@ -443,7 +443,7 @@ func Escape(filter string) string {
 	return string(buf)
 }
 
-var hex = "0123456789abcdef"
+var hexchars = "0123456789abcdef"
 
 func mustEscape(c byte) bool {
 	return c > 0x7f || c == '(' || c == ')' || c == '\\' || c == '*' || c == 0

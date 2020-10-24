@@ -12,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/userhive/asn1/ber"
 )
 
 // Handler is the ldap handler interface.
@@ -211,6 +213,7 @@ func (s *Server) serve(ctx context.Context, conn net.Conn) {
 		switch {
 		case err == io.EOF,
 			err == io.ErrUnexpectedEOF,
+			err == ber.ErrUnexpectedEOF,
 			err != nil && atomic.LoadInt32(&s.shutdownRequested) == 1,
 			err != nil && strings.Contains(err.Error(), "use of closed network connection"):
 			return
