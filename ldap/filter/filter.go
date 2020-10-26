@@ -1,6 +1,5 @@
 package filter
 
-//go:generate stringer -type Filter -trimprefix Filter
 import (
 	"bytes"
 	"encoding/hex"
