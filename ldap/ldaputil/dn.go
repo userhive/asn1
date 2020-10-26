@@ -212,11 +212,35 @@ type Attribute struct {
 }
 
 func (a *Attribute) Encode() *ber.Packet {
-	seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attribute")
-	seq.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, a.Type, "Type"))
-	set := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "AttributeValue")
+	seq := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	seq.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			a.Type,
+		),
+	)
+	set := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSet,
+		nil,
+	)
 	for _, value := range a.Vals {
-		set.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, value, "Vals"))
+		set.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				value,
+			),
+		)
 	}
 	seq.AppendChild(set)
 	return seq
@@ -239,11 +263,35 @@ type PartialAttribute struct {
 }
 
 func (p *PartialAttribute) Encode() *ber.Packet {
-	seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "PartialAttribute")
-	seq.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, p.Type, "Type"))
-	set := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "AttributeValue")
+	seq := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	seq.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			p.Type,
+		),
+	)
+	set := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSet,
+		nil,
+	)
 	for _, value := range p.Vals {
-		set.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, value, "Vals"))
+		set.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				value,
+			),
+		)
 	}
 	seq.AppendChild(set)
 	return seq
@@ -258,8 +306,20 @@ type Change struct {
 }
 
 func (c *Change) Encode() *ber.Packet {
-	change := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Change")
-	change.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, uint64(c.Operation), "Operation"))
-	change.AppendChild(c.Modification.Encode())
-	return change
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	p.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagEnumerated,
+			uint64(c.Operation),
+		),
+	)
+	p.AppendChild(c.Modification.Encode())
+	return p
 }

@@ -73,7 +73,6 @@ func (req *ExtendedRequest) AppendTo(p *ber.Packet) error {
 		ber.TypeConstructed,
 		ldaputil.ApplicationExtendedRequest.Tag(),
 		nil,
-		ldaputil.ApplicationExtendedRequest.String(),
 	)
 	extReq.AppendChild(req.BuildPacket())
 	p.AppendChild(extReq)
@@ -141,7 +140,6 @@ func NewExtendedWhoAmIHandler(f ExtendedWhoAmIHandlerFunc) ExtendedHandlerFunc {
 				ber.TypePrimitive,
 				ber.TagOctetString,
 				id,
-				"whoamiResponseValue",
 			),
 		}, nil
 	}
@@ -149,10 +147,26 @@ func NewExtendedWhoAmIHandler(f ExtendedWhoAmIHandlerFunc) ExtendedHandlerFunc {
 
 // NewExtendedPasswordModifyRequest creates an extended password modify request.
 func NewExtendedPasswordModifyRequest(id, oldPass, newPass string) (*ExtendedRequest, error) {
-	value := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "passwordModifyValue")
-	value.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, id, "userIdentity"))
-	value.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, oldPass, "oldPassword"))
-	value.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, newPass, "newPassword"))
+	value := ber.NewPacket(ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	value.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		id,
+	))
+	value.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		oldPass,
+	))
+	value.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		newPass,
+	))
 	return &ExtendedRequest{
 		Name:  ExtendedOpPasswordModify,
 		Value: value,
@@ -189,7 +203,6 @@ func NewExtendedPasswordModifyHandler(f ExtendedPasswordModifyHandlerFunc) Exten
 				ber.TypeConstructed,
 				ber.TagSequence,
 				nil,
-				"passwordModifyResponseValue",
 			),
 		}, nil
 	}

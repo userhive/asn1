@@ -66,14 +66,18 @@ func (c *BeheraPasswordPolicy) GetControl() string {
 
 // Encode returns the ber packet representation
 func (c *BeheraPasswordPolicy) Encode() *ber.Packet {
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
 	p.AppendChild(
 		ber.NewString(
 			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			ControlBeheraPasswordPolicy.String(),
-			"Control OID ("+ControlBeheraPasswordPolicy.String()+")",
 		),
 	)
 	return p
@@ -89,5 +93,6 @@ func (c *BeheraPasswordPolicy) String() string {
 		c.Expire,
 		c.Grace,
 		c.Error,
-		c.ErrorString)
+		c.ErrorString,
+	)
 }

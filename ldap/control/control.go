@@ -35,7 +35,12 @@ const (
 
 // Encode
 func Encode(controls ...Control) *ber.Packet {
-	p := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 0, nil, "Controls")
+	p := ber.NewPacket(
+		ber.ClassContext,
+		ber.TypeConstructed,
+		0,
+		nil,
+	)
 	for _, c := range controls {
 		if c == nil {
 			panic("passed control is nil")
@@ -56,26 +61,19 @@ func Decode(p *ber.Packet) (Control, error) {
 		return nil, fmt.Errorf("at least one child is required for control type")
 	case 1:
 		// just type, no criticality or value
-		p.Children[0].Desc = "Control OID (" + controlType.String() + ")"
 		controlType = ControlID(p.Children[0].Value.(string))
 	case 2:
-		p.Children[0].Desc = "Control OID (" + controlType.String() + ")"
 		controlType = ControlID(p.Children[0].Value.(string))
 		// Children[1] could be criticality or value (both are optional)
 		// duck-type on whether this is a boolean
 		if _, ok := p.Children[1].Value.(bool); ok {
-			p.Children[1].Desc = "Criticality"
 			Criticality = p.Children[1].Value.(bool)
 		} else {
-			p.Children[1].Desc = "Control Value"
 			value = p.Children[1]
 		}
 	case 3:
-		p.Children[0].Desc = "Control OID (" + controlType.String() + ")"
 		controlType = ControlID(p.Children[0].Value.(string))
-		p.Children[1].Desc = "Criticality"
 		Criticality = p.Children[1].Value.(bool)
-		p.Children[2].Desc = "Control Value"
 		value = p.Children[2]
 	default:
 		// more than 3 children is invalid
@@ -85,7 +83,6 @@ func Decode(p *ber.Packet) (Control, error) {
 	case ControlManageDsaIT:
 		return NewManageDsaIT(Criticality), nil
 	case ControlPaging:
-		value.Desc += " (" + ControlPaging.String() + ")"
 		c := new(Paging)
 		if value.Value != nil {
 			valueChildren, err := ber.ParseBytes(value.Data.Bytes())
@@ -97,15 +94,11 @@ func Decode(p *ber.Packet) (Control, error) {
 			value.AppendChild(valueChildren)
 		}
 		value = value.Children[0]
-		value.Desc = "Search Control Value"
-		value.Children[0].Desc = "Paging Size"
-		value.Children[1].Desc = "Cookie"
 		c.PagingSize = uint32(value.Children[0].Value.(int64))
 		c.Cookie = value.Children[1].Data.Bytes()
 		value.Children[1].Value = c.Cookie
 		return c, nil
 	case ControlBeheraPasswordPolicy:
-		value.Desc += " (Password Policy - Behera)"
 		c := NewBeheraPasswordPolicy()
 		if value.Value != nil {
 			valueChildren, err := ber.ParseBytes(value.Data.Bytes())
@@ -198,14 +191,18 @@ func (c *String) GetControl() string {
 
 // Encode returns the ber packet representation
 func (c *String) Encode() *ber.Packet {
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
 	p.AppendChild(
 		ber.NewString(
 			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			c.OID,
-			"Control OID ("+c.OID+")",
 		),
 	)
 	if c.Criticality {
@@ -215,7 +212,6 @@ func (c *String) Encode() *ber.Packet {
 				ber.TypePrimitive,
 				ber.TagBoolean,
 				c.Criticality,
-				"Criticality",
 			),
 		)
 	}
@@ -226,7 +222,6 @@ func (c *String) Encode() *ber.Packet {
 				ber.TypePrimitive,
 				ber.TagOctetString,
 				string(c.ControlValue),
-				"Control Value",
 			),
 		)
 	}
@@ -263,14 +258,18 @@ func (c *Paging) GetControl() string {
 
 // Encode returns the ber packet representation
 func (c *Paging) Encode() *ber.Packet {
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
 	p.AppendChild(
 		ber.NewString(
 			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			ControlPaging.String(),
-			"Control Paging",
 		),
 	)
 	p2 := ber.NewPacket(
@@ -278,14 +277,12 @@ func (c *Paging) Encode() *ber.Packet {
 		ber.TypePrimitive,
 		ber.TagOctetString,
 		nil,
-		"Control Value ("+ControlPaging.String()+")",
 	)
 	seq := ber.NewPacket(
 		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
-		"Search Control Value",
 	)
 	seq.AppendChild(
 		ber.NewInteger(
@@ -293,7 +290,6 @@ func (c *Paging) Encode() *ber.Packet {
 			ber.TypePrimitive,
 			ber.TagInteger,
 			int64(c.PagingSize),
-			"Paging Size",
 		),
 	)
 	cookie := ber.NewPacket(
@@ -301,7 +297,6 @@ func (c *Paging) Encode() *ber.Packet {
 		ber.TypePrimitive,
 		ber.TagOctetString,
 		nil,
-		"Cookie",
 	)
 	cookie.Value = c.Cookie
 	cookie.Data.Write(c.Cookie)
@@ -346,7 +341,6 @@ func (c *ManageDsaIT) Encode() *ber.Packet {
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
-		"Control",
 	)
 	p.AppendChild(
 		ber.NewString(
@@ -354,7 +348,6 @@ func (c *ManageDsaIT) Encode() *ber.Packet {
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			ControlManageDsaIT.String(),
-			"Control Mangage Dsa IT",
 		),
 	)
 	if c.Criticality {
@@ -364,7 +357,6 @@ func (c *ManageDsaIT) Encode() *ber.Packet {
 				ber.TypePrimitive,
 				ber.TagBoolean,
 				c.Criticality,
-				"Criticality",
 			),
 		)
 	}
@@ -386,11 +378,9 @@ func NewManageDsaIT(Criticality bool) *ManageDsaIT {
 }
 
 func AddDescriptions(p *ber.Packet) error {
-	p.Desc = "Controls"
 	for _, child := range p.Children {
 		var value *ber.Packet
 		controlType := ""
-		child.Desc = "Control"
 		switch len(child.Children) {
 		case 0:
 			// at least one child is required for control type
@@ -398,24 +388,16 @@ func AddDescriptions(p *ber.Packet) error {
 		case 1:
 			// just type, no criticality or value
 			controlType = child.Children[0].Value.(string)
-			child.Children[0].Desc = "Control Type (" + controlType + ")"
 		case 2:
 			controlType = child.Children[0].Value.(string)
-			child.Children[0].Desc = "Control Type (" + controlType + ")"
 			// Children[1] could be criticality or value (both are optional)
 			// duck-type on whether this is a boolean
-			if _, ok := child.Children[1].Value.(bool); ok {
-				child.Children[1].Desc = "Criticality"
-			} else {
-				child.Children[1].Desc = "Control Value"
+			if _, ok := child.Children[1].Value.(bool); !ok {
 				value = child.Children[1]
 			}
 		case 3:
 			// criticality and value present
 			controlType = child.Children[0].Value.(string)
-			child.Children[0].Desc = "Control Type (" + controlType + ")"
-			child.Children[1].Desc = "Criticality"
-			child.Children[2].Desc = "Control Value"
 			value = child.Children[2]
 		default:
 			// more than 3 children is invalid
@@ -426,7 +408,6 @@ func AddDescriptions(p *ber.Packet) error {
 		}
 		switch controlType {
 		case string(ControlPaging):
-			value.Desc += " (" + ControlPaging.String() + ")"
 			if value.Value != nil {
 				_, valueChildren, err := ber.Parse(value.Data)
 				if err != nil {
@@ -437,11 +418,7 @@ func AddDescriptions(p *ber.Packet) error {
 				valueChildren.Children[1].Value = valueChildren.Children[1].Data.Bytes()
 				value.AppendChild(valueChildren)
 			}
-			value.Children[0].Desc = "Real Search Control Value"
-			value.Children[0].Children[0].Desc = "Paging Size"
-			value.Children[0].Children[1].Desc = "Cookie"
 		case string(ControlBeheraPasswordPolicy):
-			value.Desc += " (Password Policy - Behera Draft)"
 			if value.Value != nil {
 				_, valueChildren, err := ber.Parse(value.Data)
 				if err != nil {
@@ -462,11 +439,9 @@ func AddDescriptions(p *ber.Packet) error {
 					}
 					if warningPacket.Tag == 0 {
 						// timeBeforeExpiration
-						value.Desc += " (TimeBeforeExpiration)"
 						warningPacket.Value = val
 					} else if warningPacket.Tag == 1 {
 						// graceAuthNsRemaining
-						value.Desc += " (GraceAuthNsRemaining)"
 						warningPacket.Value = val
 					}
 				} else if child.Tag == 1 {
@@ -475,9 +450,7 @@ func AddDescriptions(p *ber.Packet) error {
 					if len(bs) != 1 || bs[0] > 8 {
 						return fmt.Errorf("failed to decode data bytes: %s", "invalid PasswordPolicyResponse enum value")
 					}
-					val := int8(bs[0])
-					child.Desc = "Error"
-					child.Value = val
+					child.Value = int8(bs[0])
 				}
 			}
 		}

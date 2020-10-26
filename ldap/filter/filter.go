@@ -198,15 +198,30 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 		newPos++
 		return p, newPos, err
 	case '&':
-		p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, And, nil, And.String())
+		p = ber.NewPacket(
+			ber.ClassContext,
+			ber.TypeConstructed,
+			And,
+			nil,
+		)
 		newPos, err = compileSet(filter, pos+currentWidth, p)
 		return p, newPos, err
 	case '|':
-		p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, Or, nil, Or.String())
+		p = ber.NewPacket(
+			ber.ClassContext,
+			ber.TypeConstructed,
+			Or,
+			nil,
+		)
 		newPos, err = compileSet(filter, pos+currentWidth, p)
 		return p, newPos, err
 	case '!':
-		p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, Not, nil, Not.String())
+		p = ber.NewPacket(
+			ber.ClassContext,
+			ber.TypeConstructed,
+			Not,
+			nil,
+		)
 		var child *ber.Packet
 		child, newPos, err = compile(filter, pos+currentWidth)
 		p.AppendChild(child)
@@ -236,44 +251,84 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 				switch {
 				// Extensible rule, with only DN-matching
 				case currentRune == ':' && strings.HasPrefix(remaining, ":dn:="):
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						ExtensibleMatch,
+						nil,
+					)
 					extensibleDNAttributes = true
 					state = stateReadingCondition
 					newPos += 5
 				// Extensible rule, with DN-matching and a matching OID
 				case currentRune == ':' && strings.HasPrefix(remaining, ":dn:"):
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						ExtensibleMatch,
+						nil,
+					)
 					extensibleDNAttributes = true
 					state = stateReadingExtensibleMatchingRule
 					newPos += 4
 				// Extensible rule, with attr only
 				case currentRune == ':' && strings.HasPrefix(remaining, ":="):
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						ExtensibleMatch,
+						nil,
+					)
 					state = stateReadingCondition
 					newPos += 2
 				// Extensible rule, with no DN attribute matching
 				case currentRune == ':':
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ExtensibleMatch, nil, ExtensibleMatch.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						ExtensibleMatch,
+						nil,
+					)
 					state = stateReadingExtensibleMatchingRule
 					newPos++
 				// Equality condition
 				case currentRune == '=':
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, EqualityMatch, nil, EqualityMatch.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						EqualityMatch,
+						nil,
+					)
 					state = stateReadingCondition
 					newPos++
 				// Greater-than or equal
 				case currentRune == '>' && strings.HasPrefix(remaining, ">="):
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, GreaterOrEqual, nil, GreaterOrEqual.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						GreaterOrEqual,
+						nil,
+					)
 					state = stateReadingCondition
 					newPos += 2
 				// Less-than or equal
 				case currentRune == '<' && strings.HasPrefix(remaining, "<="):
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, LessOrEqual, nil, LessOrEqual.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						LessOrEqual,
+						nil,
+					)
 					state = stateReadingCondition
 					newPos += 2
 				// Approx
 				case currentRune == '~' && strings.HasPrefix(remaining, "~="):
-					p = ber.NewPacket(ber.ClassContext, ber.TypeConstructed, ApproxMatch, nil, ApproxMatch.String())
+					p = ber.NewPacket(
+						ber.ClassContext,
+						ber.TypeConstructed,
+						ApproxMatch,
+						nil,
+					)
 					state = stateReadingCondition
 					newPos += 2
 				// Still reading the attribute name
@@ -314,29 +369,72 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 			// }
 			// Include the matching rule oid, if specified
 			if extensibleMatchingRule.Len() > 0 {
-				p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleMatchingRule, extensibleMatchingRule.String(), RuleMatchingRule.String()))
+				p.AppendChild(
+					ber.NewString(
+						ber.ClassContext,
+						ber.TypePrimitive,
+						RuleMatchingRule,
+						extensibleMatchingRule.String(),
+					),
+				)
 			}
 			// Include the attribute, if specified
 			if attribute.Len() > 0 {
-				p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleType, attribute.String(), RuleType.String()))
+				p.AppendChild(
+					ber.NewString(
+						ber.ClassContext,
+						ber.TypePrimitive,
+						RuleType,
+						attribute.String(),
+					),
+				)
 			}
 			// Add the value (only required child)
 			encodedString, encodeErr := Unescape(condition.Bytes())
 			if encodeErr != nil {
 				return p, newPos, encodeErr
 			}
-			p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, RuleMatchValue, encodedString, RuleMatchValue.String()))
+			p.AppendChild(
+				ber.NewString(
+					ber.ClassContext,
+					ber.TypePrimitive,
+					RuleMatchValue,
+					encodedString,
+				),
+			)
 			// Defaults to false, so only include in the sequence if true
 			if extensibleDNAttributes {
-				p.AppendChild(ber.NewBoolean(ber.ClassContext, ber.TypePrimitive, RuleDNAttributes, extensibleDNAttributes, RuleDNAttributes.String()))
+				p.AppendChild(
+					ber.NewBoolean(
+						ber.ClassContext,
+						ber.TypePrimitive,
+						RuleDNAttributes,
+						extensibleDNAttributes,
+					),
+				)
 			}
 		case p.Tag == EqualityMatch && bytes.Equal(condition.Bytes(), any):
-			p = ber.NewString(ber.ClassContext, ber.TypePrimitive, Present, attribute.String(), Present.String())
+			p = ber.NewString(
+				ber.ClassContext,
+				ber.TypePrimitive,
+				Present,
+				attribute.String(),
+			)
 		case p.Tag == EqualityMatch && bytes.Index(condition.Bytes(), any) > -1:
-			p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute.String(), "Attribute"))
+			p.AppendChild(
+				ber.NewString(ber.ClassUniversal,
+					ber.TypePrimitive,
+					ber.TagOctetString,
+					attribute.String(),
+				),
+			)
 			p.Tag = Substrings
-			p.Desc = p.Tag.String()
-			seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Substrings")
+			seq := ber.NewPacket(
+				ber.ClassUniversal,
+				ber.TypeConstructed,
+				ber.TagSequence,
+				nil,
+			)
 			parts := bytes.Split(condition.Bytes(), any)
 			for i, part := range parts {
 				if len(part) == 0 {
@@ -355,7 +453,14 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 				if encodeErr != nil {
 					return p, newPos, encodeErr
 				}
-				seq.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, tag, encodedString, tag.String()))
+				seq.AppendChild(
+					ber.NewString(
+						ber.ClassContext,
+						ber.TypePrimitive,
+						tag,
+						encodedString,
+					),
+				)
 			}
 			p.AppendChild(seq)
 		default:
@@ -363,8 +468,22 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 			if encodeErr != nil {
 				return p, newPos, encodeErr
 			}
-			p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, attribute.String(), "Attribute"))
-			p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, encodedString, "Condition"))
+			p.AppendChild(
+				ber.NewString(
+					ber.ClassUniversal,
+					ber.TypePrimitive,
+					ber.TagOctetString,
+					attribute.String(),
+				),
+			)
+			p.AppendChild(
+				ber.NewString(
+					ber.ClassUniversal,
+					ber.TypePrimitive,
+					ber.TagOctetString,
+					encodedString,
+				),
+			)
 		}
 		newPos += currentWidth
 		return p, newPos, err

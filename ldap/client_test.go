@@ -36,11 +36,27 @@ func TestClientUnresponsiveConnection(t *testing.T) {
 	cl.Start()
 	defer cl.Close()
 	// Mock a packet
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
-	bindRequest := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
-	bindRequest.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
-	p.AppendChild(bindRequest)
+	p := ber.NewPacket(ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	p.AppendChild(ber.NewInteger(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		cl.nextMessageID(),
+	))
+	req := ber.NewPacket(ber.ClassApplication,
+		ber.TypeConstructed,
+		ldaputil.ApplicationBindRequest.Tag(),
+		nil,
+	)
+	req.AppendChild(ber.NewInteger(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		3,
+	))
+	p.AppendChild(req)
 	// Send packet and test response
 	msgCtx, err := cl.SendMessage(p)
 	if err != nil {
@@ -55,7 +71,7 @@ func TestClientUnresponsiveConnection(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected timeout error")
 	}
-	if err.Error() != "ldap: connection timed out" {
+	if err.Error() != "connection timed out" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -106,8 +122,16 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCt
 	runWithTimeout(t, time.Second, func() {
 		msgID = cl.nextMessageID()
 	})
-	req := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
-	req.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgID, "MessageID"))
+	req := ber.NewPacket(ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	req.AppendChild(ber.NewInteger(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		msgID,
+	))
 	var err error
 	runWithTimeout(t, time.Second, func() {
 		msgCtx, err = cl.SendMessage(req)
@@ -127,8 +151,16 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCt
 
 func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *MessageContext) {
 	// Send a mock response packet.
-	res := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-	res.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
+	res := ber.NewPacket(ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	res.AppendChild(ber.NewInteger(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		msgCtx.id,
+	))
 	runWithTimeout(t, time.Second, func() {
 		if err := ptc.SendResponse(res); err != nil {
 			t.Fatalf("unable to send response packet: %s", err)
@@ -144,8 +176,16 @@ func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *Messag
 
 func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn, cl *Client, msgCtx *MessageContext, numResponses int) {
 	// Send a mock response packet.
-	res := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-	res.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, msgCtx.id, "MessageID"))
+	res := ber.NewPacket(ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
+	res.AppendChild(ber.NewInteger(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		msgCtx.id,
+	))
 	// Send extra responses but do not attempt to receive them on the
 	// client side.
 	for i := 0; i < numResponses; i++ {
@@ -309,9 +349,9 @@ func (c *packetTranslatorConn) SetWriteDeadline(t time.Time) error {
 func TestClientNilPacket(t *testing.T) {
 	t.Parallel()
 	// Test for nil packet
-	err := ldaputil.GetLDAPError(nil)
-	if !ldaputil.IsErrorWithCode(err, ldaputil.ResultUnexpectedResponseError) {
-		t.Errorf("Should have an 'ldaputil.ResultUnexpectedResponseError' error in nil packets, got: %v", err)
+	err := GetError(nil)
+	if !IsErrorOf(err, ldaputil.ResultClientError) {
+		t.Errorf("Should have an 'ldaputil.ResultClientError, got: %v", err)
 	}
 	// Test for nil result
 	kids := []*ber.Packet{
@@ -319,9 +359,9 @@ func TestClientNilPacket(t *testing.T) {
 		nil, // Can't be nil
 	}
 	pack := &ber.Packet{Children: kids}
-	err = ldaputil.GetLDAPError(pack)
-	if !ldaputil.IsErrorWithCode(err, ldaputil.ResultUnexpectedResponseError) {
-		t.Errorf("Should have an 'ldaputil.ResultUnexpectedResponseError' error in nil packets, got: %v", err)
+	err = GetError(pack)
+	if !IsErrorOf(err, ldaputil.ResultClientError) {
+		t.Errorf("Should have an 'ldap.ResultClientError' error in nil packets, got: %v", err)
 	}
 }
 
@@ -348,41 +388,81 @@ func TestClientConnReadErr(t *testing.T) {
 	}
 }
 
-// TestGetLDAPError tests parsing of result with a error response.
-func TestClientGetLDAPError(t *testing.T) {
+// TestGetError tests parsing of result with a error response.
+func TestClientGetError(t *testing.T) {
+	exp := "Detailed error message"
 	t.Parallel()
-	diagnosticMessage := "Detailed error message"
-	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindResponse.Tag(), nil, "Bind Response")
-	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(ldaputil.ResultInvalidCredentials), "resultCode"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "dc=example,dc=org", "matchedDN"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, diagnosticMessage, "diagnosticMessage"))
-	p := ber.NewSequence("LDAPMessage")
-	p.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
-	p.AppendChild(bindResponse)
-	err := ldaputil.GetLDAPError(p)
+	res := ber.NewPacket(ber.ClassApplication,
+		ber.TypeConstructed,
+		ldaputil.ApplicationBindResponse.Tag(),
+		nil,
+	)
+	res.AppendChild(ber.NewPacket(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		int64(ldaputil.ResultInvalidCredentials),
+	))
+	res.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		"dc=example,dc=org",
+	))
+	res.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		exp,
+	))
+	p := ber.NewSequence()
+	p.AppendChild(ber.NewPacket(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		int64(0),
+	))
+	p.AppendChild(res)
+	err := GetError(p)
 	if err == nil {
 		t.Errorf("Did not get error response")
 	}
-	ldapError := err.(*ldaputil.Error)
-	if ldapError.ResultCode != ldaputil.ResultInvalidCredentials {
-		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.ResultCode, ldaputil.ResultInvalidCredentials)
+	ldapError := err.(*Error)
+	if ldapError.Result != ldaputil.ResultInvalidCredentials {
+		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.Result, ldaputil.ResultInvalidCredentials)
 	}
-	if ldapError.Err.Error() != diagnosticMessage {
-		t.Errorf("Got incorrect error message in LDAP error; got %v, expected %v", ldapError.Err.Error(), diagnosticMessage)
+	if ldapError.Message != exp {
+		t.Errorf("Got incorrect error message in LDAP error; got %v, expected %v", ldapError.Message, exp)
 	}
 }
 
-// TestGetLDAPErrorSuccess tests parsing of a result with no error (resultCode == 0).
-func TestClientGetLDAPErrorSuccess(t *testing.T) {
+// TestGetErrorSuccess tests parsing of a result with no error (resultCode == 0).
+func TestClientGetErrorSuccess(t *testing.T) {
 	t.Parallel()
-	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindResponse.Tag(), nil, "Bind Response")
-	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "resultCode"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "matchedDN"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "diagnosticMessage"))
-	p := ber.NewSequence("LDAPMessage")
-	p.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
-	p.AppendChild(bindResponse)
-	err := ldaputil.GetLDAPError(p)
+	res := ber.NewPacket(ber.ClassApplication,
+		ber.TypeConstructed,
+		ldaputil.ApplicationBindResponse.Tag(),
+		nil,
+	)
+	res.AppendChild(ber.NewPacket(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		int64(0),
+	))
+	res.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		"",
+	))
+	res.AppendChild(ber.NewString(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagOctetString,
+		"",
+	))
+	p := ber.NewSequence()
+	p.AppendChild(ber.NewPacket(ber.ClassUniversal,
+		ber.TypePrimitive,
+		ber.TagInteger,
+		int64(0),
+	))
+	p.AppendChild(res)
+	err := GetError(p)
 	if err != nil {
 		t.Errorf("Successful responses should not produce an error, but got: %v", err)
 	}

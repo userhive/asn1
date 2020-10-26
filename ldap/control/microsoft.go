@@ -16,14 +16,18 @@ func (c *MicrosoftChangeNotification) GetControl() string {
 
 // Encode returns the ber packet representation
 func (c *MicrosoftChangeNotification) Encode() *ber.Packet {
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
 	p.AppendChild(
 		ber.NewString(
 			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			ControlMicrosoftChangeNotification.String(),
-			"Control OID ("+ControlMicrosoftChangeNotification.String()+")",
 		),
 	)
 	return p
@@ -52,14 +56,18 @@ func (c *MicrosoftShowDeletedObjects) GetControl() string {
 
 // Encode returns the ber packet representation
 func (c *MicrosoftShowDeletedObjects) Encode() *ber.Packet {
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+	)
 	p.AppendChild(
 		ber.NewString(
 			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			ControlMicrosoftShowDeletedObjects.String(),
-			"Control OID ("+ControlMicrosoftShowDeletedObjects.String()+")",
 		),
 	)
 	return p

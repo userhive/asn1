@@ -117,7 +117,6 @@ func BuildMessagePacket(id int64, p *ber.Packet) *ber.Packet {
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
-		"message",
 	)
 	msg.AppendChild(
 		ber.NewInteger(
@@ -125,7 +124,6 @@ func BuildMessagePacket(id int64, p *ber.Packet) *ber.Packet {
 			ber.TypePrimitive,
 			ber.TagInteger,
 			id,
-			"id",
 		),
 	)
 	msg.AppendChild(p)
@@ -139,7 +137,6 @@ func BuildResultPacket(app ldaputil.Application, result ldaputil.Result, matched
 		ber.TypeConstructed,
 		ber.Tag(app),
 		nil,
-		app.String(),
 	)
 	p.AppendChild(
 		ber.NewInteger(
@@ -147,7 +144,6 @@ func BuildResultPacket(app ldaputil.Application, result ldaputil.Result, matched
 			ber.TypePrimitive,
 			ber.TagEnumerated,
 			int(result),
-			"resultCode",
 		),
 	)
 	p.AppendChild(
@@ -156,20 +152,14 @@ func BuildResultPacket(app ldaputil.Application, result ldaputil.Result, matched
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			matched,
-			"matchedDN",
 		),
 	)
-	typ := "diagnosticMessage"
-	if result != ldaputil.ResultSuccess {
-		typ = "errorMessage"
-	}
 	p.AppendChild(
 		ber.NewString(
 			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			msg,
-			typ,
 		),
 	)
 	return p
@@ -177,10 +167,7 @@ func BuildResultPacket(app ldaputil.Application, result ldaputil.Result, matched
 
 // BuildExtendedNameValuePacket builds an extended name and value packet.
 func BuildExtendedNameValuePacket(request bool, name ExtendedOp, value *ber.Packet) *ber.Packet {
-	tag, typ := ber.Tag(0), "Request"
-	if !request {
-		typ = "Response"
-	}
+	tag := ber.Tag(0)
 	if value != nil {
 		tag = ber.TagEmbeddedPDV
 	}
@@ -189,7 +176,6 @@ func BuildExtendedNameValuePacket(request bool, name ExtendedOp, value *ber.Pack
 		ber.TypePrimitive,
 		tag,
 		name.String(),
-		"extended"+typ,
 	)
 	if name != "" {
 		_, _ = p.Data.Write([]byte(name))
@@ -218,7 +204,7 @@ func DoExtendedRequest(ctx context.Context, cl *Client, req *ExtendedRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	if err := ldaputil.GetLDAPError(p); err != nil {
+	if err := GetError(p); err != nil {
 		return nil, err
 	}
 	if len(p.Children) != 2 {

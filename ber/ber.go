@@ -90,7 +90,6 @@ type Packet struct {
 	ByteValue []byte
 	Data      *bytes.Buffer
 	Children  []*Packet
-	Desc      string
 }
 
 // ParseLimit reads a ber packet from r up to max bytes.
@@ -234,7 +233,7 @@ func ParseBytes(buf []byte) (*Packet, error) {
 }
 
 // NewPacket creates a new ber packet.
-func NewPacket(class Class, typ Type, tag Tag, value interface{}, desc string) *Packet {
+func NewPacket(class Class, typ Type, tag Tag, value interface{}) *Packet {
 	p := &Packet{
 		Class:    class,
 		Type:     typ,
@@ -242,7 +241,6 @@ func NewPacket(class Class, typ Type, tag Tag, value interface{}, desc string) *
 		Data:     new(bytes.Buffer),
 		Children: make([]*Packet, 0, 2),
 		Value:    value,
-		Desc:     desc,
 	}
 	if value != nil {
 		switch class {
@@ -283,37 +281,37 @@ func NewPacket(class Class, typ Type, tag Tag, value interface{}, desc string) *
 }
 
 // NewSequence creates a new sequence packet.
-func NewSequence(desc string) *Packet {
-	return NewPacket(ClassUniversal, TypeConstructed, TagSequence, nil, desc)
+func NewSequence() *Packet {
+	return NewPacket(ClassUniversal, TypeConstructed, TagSequence, nil)
 }
 
 // NewBoolean creates a new boolean packet.
-func NewBoolean(class Class, typ Type, tag Tag, value bool, desc string) *Packet {
+func NewBoolean(class Class, typ Type, tag Tag, value bool) *Packet {
 	i := int64(0)
 	if value {
 		i = 1
 	}
-	p := NewPacket(class, typ, tag, nil, desc)
+	p := NewPacket(class, typ, tag, nil)
 	p.Value = value
 	p.Data.Write(EncodeInt64(i))
 	return p
 }
 
 // NewLDAPBoolean creates a new RFC 4511-compliant (LDAP) boolean packet.
-func NewLDAPBoolean(class Class, typ Type, tag Tag, value bool, desc string) *Packet {
+func NewLDAPBoolean(class Class, typ Type, tag Tag, value bool) *Packet {
 	i := int64(0)
 	if value {
 		i = 255
 	}
-	p := NewPacket(class, typ, tag, nil, desc)
+	p := NewPacket(class, typ, tag, nil)
 	p.Value = value
 	p.Data.Write(EncodeInt64(i))
 	return p
 }
 
 // NewInteger creates a new integer packet.
-func NewInteger(class Class, typ Type, tag Tag, value interface{}, desc string) *Packet {
-	p := NewPacket(class, typ, tag, nil, desc)
+func NewInteger(class Class, typ Type, tag Tag, value interface{}) *Packet {
+	p := NewPacket(class, typ, tag, nil)
 	p.Value = value
 	switch v := value.(type) {
 	case int:
@@ -345,16 +343,16 @@ func NewInteger(class Class, typ Type, tag Tag, value interface{}, desc string) 
 }
 
 // NewString creates a new string packet.
-func NewString(class Class, typ Type, tag Tag, value, desc string) *Packet {
-	p := NewPacket(class, typ, tag, nil, desc)
+func NewString(class Class, typ Type, tag Tag, value string) *Packet {
+	p := NewPacket(class, typ, tag, nil)
 	p.Value = value
 	p.Data.Write([]byte(value))
 	return p
 }
 
 // NewGeneralizedTime creates a new generalized time packet.
-func NewGeneralizedTime(class Class, typ Type, tag Tag, value time.Time, desc string) *Packet {
-	p := NewPacket(class, typ, tag, nil, desc)
+func NewGeneralizedTime(class Class, typ Type, tag Tag, value time.Time) *Packet {
+	p := NewPacket(class, typ, tag, nil)
 	var s string
 	if value.Nanosecond() != 0 {
 		s = value.Format(`20060102150405.000000000Z`)
@@ -367,8 +365,8 @@ func NewGeneralizedTime(class Class, typ Type, tag Tag, value time.Time, desc st
 }
 
 // NewReal creates a new real packet.
-func NewReal(class Class, typ Type, tag Tag, value interface{}, desc string) *Packet {
-	p := NewPacket(class, typ, tag, nil, desc)
+func NewReal(class Class, typ Type, tag Tag, value interface{}) *Packet {
+	p := NewPacket(class, typ, tag, nil)
 	switch v := value.(type) {
 	case float64:
 		p.Data.Write(EncodeFloat64(v))
@@ -387,12 +385,11 @@ func (p *Packet) String() string {
 		tagStr = p.Tag.String()
 	}
 	return fmt.Sprintf(
-		"(Class=%s, Type=%s, Tag=%s, Len=%d, Desc=%q)",
+		"(Class=%s, Type=%s, Tag=%s, Len=%d)",
 		p.Class,
 		p.Type,
 		tagStr,
 		p.Data.Len(),
-		p.Desc,
 	)
 }
 

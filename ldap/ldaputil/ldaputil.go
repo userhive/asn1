@@ -4,8 +4,6 @@ package ldaputil
 //go:generate stringer -type Result -trimprefix Result
 
 import (
-	"fmt"
-
 	"github.com/userhive/asn1/ber"
 )
 
@@ -127,83 +125,5 @@ const (
 	ResultAssertionFailed                    Result = 122  // An assertion control given in the LDAP operation evaluated to false causing the operation to not be performed
 	ResultAuthorizationDenied                Result = 123  // Authorization Denied
 	ResultSyncRefreshRequired                Result = 4096 // Refresh Required
-	ResultNetworkError                       Result = 200  // Client network error
-	ResultFilterCompileError                 Result = 201  // Client filter compile error
-	ResultFilterDecompileError               Result = 202  // Client filter decompile error
-	ResultDebuggingError                     Result = 203  // Client debugging error
-	ResultUnexpectedMessageError             Result = 204  // Client unexpected message error
-	ResultUnexpectedResponseError            Result = 205  // Client unexpected response error
-	ResultEmptyPasswordError                 Result = 206  // Client empty password error
+	ResultClientError                        Result = 200  // Client network error
 )
-
-// Error holds LDAP error information
-type Error struct {
-	// Err is the underlying error
-	Err error
-	// ResultCode is the LDAP error code
-	ResultCode Result
-	// MatchedDN is the matchedDN returned if any
-	MatchedDN string
-	// Packet is the returned packet if any
-	Packet *ber.Packet
-}
-
-// Error satisfies the error interface.
-func (e *Error) Error() string {
-	return fmt.Sprintf("LDAP Result Code %d %q: %s", e.ResultCode, e.ResultCode, e.Err.Error())
-}
-
-// GetLDAPError creates an Error out of a BER packet representing a Result
-// The return is an error object. It can be casted to a Error structure.
-// This function returns nil if resultCode in the Result sequence is success(0).
-func GetLDAPError(p *ber.Packet) error {
-	if p == nil {
-		return &Error{ResultCode: ResultUnexpectedResponseError, Err: fmt.Errorf("Empty packet")}
-	}
-	if len(p.Children) >= 2 {
-		response := p.Children[1]
-		if response == nil {
-			return &Error{ResultCode: ResultUnexpectedResponseError, Err: fmt.Errorf("Empty response in packet"), Packet: p}
-		}
-		if response.Class == ber.ClassApplication && response.Type == ber.TypeConstructed && len(response.Children) >= 3 {
-			resultCode := uint16(response.Children[0].Value.(int64))
-			if resultCode == 0 { // No error
-				return nil
-			}
-			return &Error{
-				ResultCode: Result(resultCode),
-				MatchedDN:  response.Children[1].Value.(string),
-				Err:        fmt.Errorf("%s", response.Children[2].Value.(string)),
-				Packet:     p,
-			}
-		}
-	}
-	return &Error{ResultCode: ResultNetworkError, Err: fmt.Errorf("Invalid packet format"), Packet: p}
-}
-
-// NewError creates an LDAP error with the given code and underlying error
-func NewError(resultCode Result, err error) error {
-	return &Error{ResultCode: resultCode, Err: err}
-}
-
-// IsErrorAnyOf returns true if the given error is an LDAP error with any one of the given result codes
-func IsErrorAnyOf(err error, codes ...Result) bool {
-	if err == nil {
-		return false
-	}
-	e, ok := err.(*Error)
-	if !ok {
-		return false
-	}
-	for _, code := range codes {
-		if e.ResultCode == code {
-			return true
-		}
-	}
-	return false
-}
-
-// IsErrorWithCode returns true if the given error is an LDAP error with the given result code
-func IsErrorWithCode(err error, desiredResultCode Result) bool {
-	return IsErrorAnyOf(err, desiredResultCode)
-}
