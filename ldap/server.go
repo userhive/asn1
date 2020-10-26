@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/userhive/asn1/ber"
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 // Handler is the ldap handler interface.
@@ -252,7 +253,7 @@ func (s *Server) serve(ctx context.Context, conn net.Conn) {
 				delete(requests, key)
 				requestsLock.Unlock()
 				// immediate disconnect
-				if req.Packet.Tag == ApplicationUnbindRequest.Tag() {
+				if req.Packet.Tag == ldaputil.ApplicationUnbindRequest.Tag() {
 					conn.Close()
 				}
 			}()

@@ -2,6 +2,8 @@ package ldap
 
 import (
 	"fmt"
+
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 // ServerError is a server error.
@@ -23,13 +25,13 @@ const (
 
 // Error is a ldap error.
 type Error struct {
-	Result  Result
+	Result  ldaputil.Result
 	Message string
 	Matched string
 }
 
 // NewError creates a new ldap error.
-func NewError(result Result, message string) *Error {
+func NewError(result ldaputil.Result, message string) *Error {
 	return &Error{
 		Result:  result,
 		Message: message,
@@ -37,7 +39,7 @@ func NewError(result Result, message string) *Error {
 }
 
 // NewErrorf creates a new ldap error using fmt.Sprintf.
-func NewErrorf(result Result, message string, v ...interface{}) *Error {
+func NewErrorf(result ldaputil.Result, message string, v ...interface{}) *Error {
 	return &Error{
 		Result:  result,
 		Message: fmt.Sprintf(message, v...),

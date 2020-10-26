@@ -3,6 +3,8 @@ package ldap
 import (
 	"context"
 	"errors"
+
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 type CompareHandler interface {
@@ -25,5 +27,5 @@ type CompareResponse struct{}
 
 // Encode satisfies the Encoder interface.
 func (res *CompareResponse) Encode(_ context.Context, w ResponseWriter) error {
-	return w.WriteError(ApplicationCompareResponse, errors.New("not implemented"))
+	return w.WriteError(ldaputil.ApplicationCompareResponse, errors.New("not implemented"))
 }

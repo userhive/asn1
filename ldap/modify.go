@@ -3,6 +3,8 @@ package ldap
 import (
 	"context"
 	"errors"
+
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 type ModifyHandler interface {
@@ -25,5 +27,5 @@ type ModifyResponse struct{}
 
 // Encode satisfies the Encoder interface.
 func (res *ModifyResponse) Encode(_ context.Context, w ResponseWriter) error {
-	return w.WriteError(ApplicationModifyResponse, errors.New("not implemented"))
+	return w.WriteError(ldaputil.ApplicationModifyResponse, errors.New("not implemented"))
 }

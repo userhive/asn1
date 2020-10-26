@@ -6,66 +6,83 @@ import (
 	"github.com/userhive/asn1/ber"
 )
 
-// MicrosoftNotification implements the control described in https://msdn.microsoft.com/en-us/library/aa366983(v=vs.85).aspx
-type MicrosoftNotification struct{}
+// MicrosoftChangeNotification implements the control described in https://msdn.microsoft.com/en-us/library/aa366983(v=vs.85).aspx
+type MicrosoftChangeNotification struct{}
 
-// GetOID returns the OID
-func (c *MicrosoftNotification) GetOID() string {
-	return OIDMicrosoftNotification
+// GetControl returns the Control
+func (c *MicrosoftChangeNotification) GetControl() string {
+	return ControlMicrosoftChangeNotification.String()
 }
 
 // Encode returns the ber packet representation
-func (c *MicrosoftNotification) Encode() *ber.Packet {
+func (c *MicrosoftChangeNotification) Encode() *ber.Packet {
 	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
-	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, OIDMicrosoftNotification, "Control OID ("+OIDMap[OIDMicrosoftNotification]+")"))
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			ControlMicrosoftChangeNotification.String(),
+			"Control OID ("+ControlMicrosoftChangeNotification.String()+")",
+		),
+	)
 	return p
 }
 
 // String returns a human-readable description
-func (c *MicrosoftNotification) String() string {
+func (c *MicrosoftChangeNotification) String() string {
 	return fmt.Sprintf(
 		"Control OID: %s (%q)",
-		OIDMap[OIDMicrosoftNotification],
-		OIDMicrosoftNotification)
+		ControlMicrosoftChangeNotification.String(),
+		ControlMicrosoftChangeNotification)
 }
 
-// NewMicrosoftNotification returns a ControlMicrosoftNotification control
-func NewMicrosoftNotification() *MicrosoftNotification {
-	return &MicrosoftNotification{}
+// NewMicrosoftChangeNotification returns a ControlMicrosoftChangeNotification control
+func NewMicrosoftChangeNotification() *MicrosoftChangeNotification {
+	return &MicrosoftChangeNotification{}
 }
 
-// MicrosoftShowDeleted implements the control described in https://msdn.microsoft.com/en-us/library/aa366989(v=vs.85).aspx
-type MicrosoftShowDeleted struct{}
+// MicrosoftShowDeletedObjects implements the control described in https://msdn.microsoft.com/en-us/library/aa366989(v=vs.85).aspx
+type MicrosoftShowDeletedObjects struct{}
 
-// GetOID returns the OID
-func (c *MicrosoftShowDeleted) GetOID() string {
-	return OIDMicrosoftShowDeleted
+// GetControl returns the OID
+func (c *MicrosoftShowDeletedObjects) GetControl() string {
+	return ControlMicrosoftShowDeletedObjects.String()
 }
 
 // Encode returns the ber packet representation
-func (c *MicrosoftShowDeleted) Encode() *ber.Packet {
+func (c *MicrosoftShowDeletedObjects) Encode() *ber.Packet {
 	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
-	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, OIDMicrosoftShowDeleted, "Control OID ("+OIDMap[OIDMicrosoftShowDeleted]+")"))
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			ControlMicrosoftShowDeletedObjects.String(),
+			"Control OID ("+ControlMicrosoftShowDeletedObjects.String()+")",
+		),
+	)
 	return p
 }
 
 // String returns a human-readable description
-func (c *MicrosoftShowDeleted) String() string {
+func (c *MicrosoftShowDeletedObjects) String() string {
 	return fmt.Sprintf(
 		"Control OID: %s (%q)",
-		OIDMap[OIDMicrosoftShowDeleted],
-		OIDMicrosoftShowDeleted)
+		ControlMicrosoftShowDeletedObjects.String(),
+		ControlMicrosoftShowDeletedObjects,
+	)
 }
 
-// NewMicrosoftShowDeleted returns a ControlMicrosoftShowDeleted control
-func NewMicrosoftShowDeleted() *MicrosoftShowDeleted {
-	return &MicrosoftShowDeleted{}
+// NewMicrosoftShowDeletedObjects returns a ControlMicrosoftShowDeletedObjects control
+func NewMicrosoftShowDeletedObjects() *MicrosoftShowDeletedObjects {
+	return &MicrosoftShowDeletedObjects{}
 }
 
 // Find returns the first control of the given type in the list, or nil
 func Find(controls []Control, typ string) Control {
 	for _, c := range controls {
-		if c.GetOID() == typ {
+		if c.GetControl() == typ {
 			return c
 		}
 	}

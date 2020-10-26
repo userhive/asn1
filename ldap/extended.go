@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/userhive/asn1/ber"
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 // ExtendedOp is an extended operation identifier.
@@ -38,21 +39,21 @@ type ExtendedRequest struct {
 
 func ParseExtendedRequest(req *Request) (*ExtendedRequest, error) {
 	if len(req.Packet.Children) < 1 {
-		return nil, NewError(ResultProtocolError, "missing extended operation identifier")
+		return nil, NewError(ldaputil.ResultProtocolError, "missing extended operation identifier")
 	}
 	oid := string(readData(req.Packet.Children[0]))
 	if oid == "" {
-		return nil, NewError(ResultProtocolError, "invalid extended operation identifier")
+		return nil, NewError(ldaputil.ResultProtocolError, "invalid extended operation identifier")
 	}
 	var value *ber.Packet
 	switch {
 	case len(req.Packet.Children) > 2:
-		return nil, NewError(ResultProtocolError, "invalid extended request")
+		return nil, NewError(ldaputil.ResultProtocolError, "invalid extended request")
 	case len(req.Packet.Children) == 2:
 		var err error
 		_, value, err = ber.Parse(req.Packet.Children[1].Data)
 		if err != nil {
-			return nil, NewError(ResultProtocolError, "invalid extended request value")
+			return nil, NewError(ldaputil.ResultProtocolError, "invalid extended request value")
 		}
 	}
 	return &ExtendedRequest{
@@ -70,9 +71,9 @@ func (req *ExtendedRequest) AppendTo(p *ber.Packet) error {
 	extReq := ber.NewPacket(
 		ber.ClassApplication,
 		ber.TypeConstructed,
-		ApplicationExtendedRequest.Tag(),
+		ldaputil.ApplicationExtendedRequest.Tag(),
 		nil,
-		ApplicationExtendedRequest.String(),
+		ldaputil.ApplicationExtendedRequest.String(),
 	)
 	extReq.AppendChild(req.BuildPacket())
 	p.AppendChild(extReq)
@@ -80,7 +81,7 @@ func (req *ExtendedRequest) AppendTo(p *ber.Packet) error {
 }
 
 type ExtendedResponse struct {
-	Result    Result
+	Result    ldaputil.Result
 	MatchedDN string
 	Name      ExtendedOp
 	Value     *ber.Packet
@@ -92,7 +93,7 @@ func (res *ExtendedResponse) BuildPacket() *ber.Packet {
 
 // Encode satisfies the Encoder interface.
 func (res *ExtendedResponse) Encode(ctx context.Context, w ResponseWriter) error {
-	return w.WriteResult(ApplicationExtendedResponse, res.Result, res.MatchedDN, res.Result.String(), res.BuildPacket())
+	return w.WriteResult(ldaputil.ApplicationExtendedResponse, res.Result, res.MatchedDN, res.Result.String(), res.BuildPacket())
 }
 
 // NewExtendedWhoAmIRequest creates an extended whoami request.
@@ -109,13 +110,13 @@ type ExtendedOpHandler map[ExtendedOp]ExtendedHandlerFunc
 func (h ExtendedOpHandler) Extended(ctx context.Context, req *ExtendedRequest) (*ExtendedResponse, error) {
 	op, ok := h[req.Name]
 	if !ok {
-		return nil, NewErrorf(ResultOperationsError, "extended operation identifier %q not supported", req.Name)
+		return nil, NewErrorf(ldaputil.ResultOperationsError, "extended operation identifier %q not supported", req.Name)
 	}
 	return op.Extended(ctx, req)
 }
 
 // ExtendedWhoAmIHandlerFunc is the who am i handler func type.
-type ExtendedWhoAmIHandlerFunc func(context.Context, string) (Result, string, error)
+type ExtendedWhoAmIHandlerFunc func(context.Context, string) (ldaputil.Result, string, error)
 
 // NewExtendedWhoAmIHandler creates a new who am i handler.
 //
@@ -125,7 +126,7 @@ func NewExtendedWhoAmIHandler(f ExtendedWhoAmIHandlerFunc) ExtendedHandlerFunc {
 	return func(ctx context.Context, req *ExtendedRequest) (*ExtendedResponse, error) {
 		sess, ok := ctx.Value(sessionKey).(*Session)
 		if !ok {
-			return nil, NewError(ResultOperationsError, "invalid session")
+			return nil, NewError(ldaputil.ResultOperationsError, "invalid session")
 		}
 		dn := sess.get("dn").(string)
 		result, id, err := f(ctx, dn)
@@ -159,17 +160,17 @@ func NewExtendedPasswordModifyRequest(id, oldPass, newPass string) (*ExtendedReq
 }
 
 // ExtendedPasswordModifyHandlerFunc is the password modify handler func type.
-type ExtendedPasswordModifyHandlerFunc func(context.Context, string, string, string, string) (Result, error)
+type ExtendedPasswordModifyHandlerFunc func(context.Context, string, string, string, string) (ldaputil.Result, error)
 
 // NewExtendedPasswordModifyHandler creates a new password modify handler.
 func NewExtendedPasswordModifyHandler(f ExtendedPasswordModifyHandlerFunc) ExtendedHandlerFunc {
 	return func(ctx context.Context, req *ExtendedRequest) (*ExtendedResponse, error) {
 		sess, ok := ctx.Value(sessionKey).(*Session)
 		if !ok {
-			return nil, NewError(ResultOperationsError, "invalid session")
+			return nil, NewError(ldaputil.ResultOperationsError, "invalid session")
 		}
 		if len(req.Value.Children) != 3 {
-			return nil, NewError(ResultProtocolError, "extended password request missing values")
+			return nil, NewError(ldaputil.ResultProtocolError, "extended password request missing values")
 		}
 		dn := sess.get("dn").(string)
 		id, oldPass, newPass :=

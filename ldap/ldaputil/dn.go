@@ -1,4 +1,4 @@
-package ldapclient
+package ldaputil
 
 import (
 	"bytes"
@@ -28,21 +28,21 @@ type DN struct {
 	RDNs []*RelativeDN
 }
 
-// ParseDN returns a distinguishedName or an error.
+// Parse returns a distinguishedName or an error.
 // The function respects https://tools.ietf.org/html/rfc4514
 func ParseDN(str string) (*DN, error) {
 	dn := new(DN)
 	dn.RDNs = make([]*RelativeDN, 0)
 	rdn := new(RelativeDN)
 	rdn.Attributes = make([]*AttributeTypeAndValue, 0)
-	buffer := bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	attribute := new(AttributeTypeAndValue)
 	escaping := false
 	unescapedTrailingSpaces := 0
 	stringFromBuffer := func() string {
-		s := buffer.String()
+		s := buf.String()
 		s = s[0 : len(s)-unescapedTrailingSpaces]
-		buffer.Reset()
+		buf.Reset()
 		unescapedTrailingSpaces = 0
 		return s
 	}
@@ -54,7 +54,7 @@ func ParseDN(str string) (*DN, error) {
 			escaping = false
 			switch char {
 			case ' ', '"', '#', '+', ',', ';', '<', '=', '>', '\\':
-				buffer.WriteByte(char)
+				buf.WriteByte(char)
 				continue
 			}
 			// Not a special character, assume hex encoded octet
@@ -68,7 +68,7 @@ func ParseDN(str string) (*DN, error) {
 			} else if n != 1 {
 				return nil, fmt.Errorf("expected 1 byte when un-escaping, got %d", n)
 			}
-			buffer.WriteByte(dst[0])
+			buf.WriteByte(dst[0])
 			i++
 		case char == '\\':
 			unescapedTrailingSpaces = 0
@@ -95,7 +95,7 @@ func ParseDN(str string) (*DN, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode BER packet: %s", err)
 				}
-				buffer.WriteString(p.Data.String())
+				buf.WriteString(p.Data.String())
 				i += len(data) - 1
 			}
 		case char == ',' || char == '+':
@@ -111,7 +111,7 @@ func ParseDN(str string) (*DN, error) {
 				rdn = new(RelativeDN)
 				rdn.Attributes = make([]*AttributeTypeAndValue, 0)
 			}
-		case char == ' ' && buffer.Len() == 0:
+		case char == ' ' && buf.Len() == 0:
 			// ignore unescaped leading spaces
 			continue
 		default:
@@ -122,10 +122,10 @@ func ParseDN(str string) (*DN, error) {
 				// Reset if we see a non-space char
 				unescapedTrailingSpaces = 0
 			}
-			buffer.WriteByte(char)
+			buf.WriteByte(char)
 		}
 	}
-	if buffer.Len() > 0 {
+	if buf.Len() > 0 {
 		if len(attribute.Type) == 0 {
 			return nil, errors.New("DN ended with incomplete type, value pair")
 		}
@@ -211,7 +211,7 @@ type Attribute struct {
 	Vals []string
 }
 
-func (a *Attribute) encode() *ber.Packet {
+func (a *Attribute) Encode() *ber.Packet {
 	seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attribute")
 	seq.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, a.Type, "Type"))
 	set := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "AttributeValue")
@@ -238,7 +238,7 @@ type PartialAttribute struct {
 	Vals []string
 }
 
-func (p *PartialAttribute) encode() *ber.Packet {
+func (p *PartialAttribute) Encode() *ber.Packet {
 	seq := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "PartialAttribute")
 	seq.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, p.Type, "Type"))
 	set := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "AttributeValue")
@@ -257,9 +257,9 @@ type Change struct {
 	Modification PartialAttribute
 }
 
-func (c *Change) encode() *ber.Packet {
+func (c *Change) Encode() *ber.Packet {
 	change := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Change")
 	change.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, uint64(c.Operation), "Operation"))
-	change.AppendChild(c.Modification.encode())
+	change.AppendChild(c.Modification.Encode())
 	return change
 }

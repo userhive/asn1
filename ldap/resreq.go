@@ -1,7 +1,5 @@
 package ldap
 
-//go:generate stringer -type Result -trimprefix Result
-
 import (
 	"context"
 	"fmt"
@@ -10,87 +8,7 @@ import (
 	"time"
 
 	"github.com/userhive/asn1/ber"
-	"github.com/userhive/asn1/ldapclient"
-)
-
-// Result is a ldap result code.
-type Result int
-
-// Result values.
-const (
-	ResultSuccess                            Result = 0    // Success
-	ResultOperationsError                    Result = 1    // Operations Error
-	ResultProtocolError                      Result = 2    // Protocol Error
-	ResultTimeLimitExceeded                  Result = 3    // Time Limit Exceeded
-	ResultSizeLimitExceeded                  Result = 4    // Size Limit Exceeded
-	ResultCompareFalse                       Result = 5    // Compare False
-	ResultCompareTrue                        Result = 6    // Compare True
-	ResultAuthMethodNotSupported             Result = 7    // Auth Method Not Supported
-	ResultStrongAuthRequired                 Result = 8    // Strong Auth Required
-	ResultReferral                           Result = 10   // Referral
-	ResultAdminLimitExceeded                 Result = 11   // Admin Limit Exceeded
-	ResultUnavailableCriticalExtension       Result = 12   // Unavailable Critical Extension
-	ResultConfidentialityRequired            Result = 13   // Confidentiality Required
-	ResultSaslBindInProgress                 Result = 14   // Sasl Bind In Progress
-	ResultNoSuchAttribute                    Result = 16   // No Such Attribute
-	ResultUndefinedAttributeType             Result = 17   // Undefined Attribute Type
-	ResultInappropriateMatching              Result = 18   // Inappropriate Matching
-	ResultConstraintViolation                Result = 19   // Constraint Violation
-	ResultAttributeOrValueExists             Result = 20   // Attribute Or Value Exists
-	ResultInvalidAttributeSyntax             Result = 21   // Invalid Attribute Syntax
-	ResultNoSuchObject                       Result = 32   // No Such Object
-	ResultAliasProblem                       Result = 33   // Alias Problem
-	ResultInvalidDNSyntax                    Result = 34   // Invalid DN Syntax
-	ResultIsLeaf                             Result = 35   // Is Leaf
-	ResultAliasDereferencingProblem          Result = 36   // Alias Dereferencing Problem
-	ResultInappropriateAuthentication        Result = 48   // Inappropriate Authentication
-	ResultInvalidCredentials                 Result = 49   // Invalid Credentials
-	ResultInsufficientAccessRights           Result = 50   // Insufficient Access Rights
-	ResultBusy                               Result = 51   // Busy
-	ResultUnavailable                        Result = 52   // Unavailable
-	ResultUnwillingToPerform                 Result = 53   // Unwilling To Perform
-	ResultLoopDetect                         Result = 54   // Loop Detect
-	ResultSortControlMissing                 Result = 60   // Sort Control Missing
-	ResultOffsetRangeError                   Result = 61   // Result Offset Range Error
-	ResultNamingViolation                    Result = 64   // Naming Violation
-	ResultObjectClassViolation               Result = 65   // Object Class Violation
-	ResultResultsTooLarge                    Result = 66   // Results Too Large
-	ResultNotAllowedOnNonLeaf                Result = 67   // Not Allowed On Non Leaf
-	ResultNotAllowedOnRDN                    Result = 68   // Not Allowed On RDN
-	ResultEntryAlreadyExists                 Result = 69   // Entry Already Exists
-	ResultObjectClassModsProhibited          Result = 70   // Object Class Mods Prohibited
-	ResultAffectsMultipleDSAs                Result = 71   // Affects Multiple DSAs
-	ResultVirtualListViewErrorOrControlError Result = 76   // Failed because of a problem related to the virtual list view
-	ResultOtherError                         Result = 80   // Other
-	ResultServerDown                         Result = 81   // Cannot establish a connection
-	ResultLocalError                         Result = 82   // An error occurred
-	ResultEncodingError                      Result = 83   // LDAP encountered an error while encoding
-	ResultDecodingError                      Result = 84   // LDAP encountered an error while decoding
-	ResultTimeout                            Result = 85   // LDAP timeout while waiting for a response from the server
-	ResultAuthUnknown                        Result = 86   // The auth method requested in a bind request is unknown
-	ResultFilterError                        Result = 87   // An error occurred while encoding the given search filter
-	ResultUserCanceled                       Result = 88   // The user canceled the operation
-	ResultParamError                         Result = 89   // An invalid parameter was specified
-	ResultNoMemory                           Result = 90   // Out of memory error
-	ResultConnectError                       Result = 91   // A connection to the server could not be established
-	ResultNotSupported                       Result = 92   // An attempt has been made to use a feature not supported LDAP
-	ResultControlNotFound                    Result = 93   // The controls required to perform the requested operation were not found
-	ResultNoResultsReturned                  Result = 94   // No results were returned from the server
-	ResultMoreResultsToReturn                Result = 95   // There are more results in the chain of results
-	ResultClientLoop                         Result = 96   // A loop has been detected. For example when following referrals
-	ResultReferralLimitExceeded              Result = 97   // The referral hop limit has been exceeded
-	ResultCanceled                           Result = 100  // Operation was canceled
-	ResultNoSuchOperation                    Result = 101  // Server has no knowledge of the operation requested for cancellation
-	ResultTooLate                            Result = 112  // Too late to cancel the outstanding operation
-	ResultCannotCancel                       Result = 113  // The identified operation does not support cancellation or the cancel operation cannot be performed
-	ResultAssertionFailed                    Result = 114  // An assertion control given in the LDAP operation evaluated to false causing the operation to not be performed
-	ResultSyncRefreshRequired                Result = 118  // Refresh Required
-	ResultInvalidResponse                    Result = 119  // Invalid Response
-	ResultAmbiguousResponse                  Result = 120  // Ambiguous Response
-	ResultTLSNotSupported                    Result = 121  // Tls Not Supported
-	ResultIntermediateResponse               Result = 122  // Intermediate Response
-	ResultUnknownType                        Result = 123  // Unknown Type
-	ResultAuthorizationDenied                Result = 4096 // Authorization Denied
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 // Request is a ldap request.
@@ -132,8 +50,8 @@ type ResponseWriter interface {
 	WriteRaw([]byte) error
 	WritePacket(*ber.Packet) error
 	WriteMessage(*ber.Packet) error
-	WriteResult(Application, Result, string, string, ...*ber.Packet) error
-	WriteError(Application, error) error
+	WriteResult(ldaputil.Application, ldaputil.Result, string, string, ...*ber.Packet) error
+	WriteError(ldaputil.Application, error) error
 }
 
 // responseWriter wraps writing ldap messages.
@@ -176,7 +94,7 @@ func (w *responseWriter) WriteMessage(p *ber.Packet) error {
 }
 
 // WriteResult writes a ldap result message.
-func (w *responseWriter) WriteResult(app Application, result Result, matched, msg string, extra ...*ber.Packet) error {
+func (w *responseWriter) WriteResult(app ldaputil.Application, result ldaputil.Result, matched, msg string, extra ...*ber.Packet) error {
 	res := BuildResultPacket(app, result, matched, msg)
 	for _, p := range extra {
 		res.AppendChild(p)
@@ -185,11 +103,11 @@ func (w *responseWriter) WriteResult(app Application, result Result, matched, ms
 }
 
 // WriteError writes a ldap result error message.
-func (w *responseWriter) WriteError(app Application, err error) error {
+func (w *responseWriter) WriteError(app ldaputil.Application, err error) error {
 	if e, ok := err.(*Error); ok {
 		return w.WriteResult(app, e.Result, e.Matched, e.Message)
 	}
-	return w.WriteResult(app, ResultOperationsError, "", err.Error())
+	return w.WriteResult(app, ldaputil.ResultOperationsError, "", err.Error())
 }
 
 // BuildMessagePacket builds a ldap message packet.
@@ -215,7 +133,7 @@ func BuildMessagePacket(id int64, p *ber.Packet) *ber.Packet {
 }
 
 // BuildResultPacket builds a ldap result packet.
-func BuildResultPacket(app Application, result Result, matched, msg string) *ber.Packet {
+func BuildResultPacket(app ldaputil.Application, result ldaputil.Result, matched, msg string) *ber.Packet {
 	p := ber.NewPacket(
 		ber.ClassApplication,
 		ber.TypeConstructed,
@@ -242,7 +160,7 @@ func BuildResultPacket(app Application, result Result, matched, msg string) *ber
 		),
 	)
 	typ := "diagnosticMessage"
-	if result != ResultSuccess {
+	if result != ldaputil.ResultSuccess {
 		typ = "errorMessage"
 	}
 	p.AppendChild(
@@ -287,7 +205,7 @@ func BuildExtendedNameValuePacket(request bool, name ExtendedOp, value *ber.Pack
 //
 // Note: this is defined primarily for testing purposes, as the client does not
 // provide any direct ability to send extended requests.
-func DoExtendedRequest(ctx context.Context, cl *ldapclient.Client, req *ExtendedRequest) (*ExtendedResponse, error) {
+func DoExtendedRequest(ctx context.Context, cl *Client, req *ExtendedRequest) (*ExtendedResponse, error) {
 	//	fmt.Fprintf(os.Stdout, "--------------------------- DoExtendedRequest\n")
 	//	ber.PrintPacket(req.BuildPacket())
 	//	fmt.Fprintf(os.Stdout, "--------------------------- DoExtendedRequest\n")
@@ -300,20 +218,20 @@ func DoExtendedRequest(ctx context.Context, cl *ldapclient.Client, req *Extended
 	if err != nil {
 		return nil, err
 	}
-	if err := ldapclient.GetLDAPError(p); err != nil {
+	if err := ldaputil.GetLDAPError(p); err != nil {
 		return nil, err
 	}
 	if len(p.Children) != 2 {
 		return nil, fmt.Errorf("invalid extended response (len=%d)", len(p.Children))
 	}
-	if p.Children[1].Tag != ApplicationExtendedResponse.Tag() {
+	if p.Children[1].Tag != ldaputil.ApplicationExtendedResponse.Tag() {
 		return nil, fmt.Errorf("invalid extended response tag %d", p.Children[1].Tag)
 	}
 	n := len(p.Children[1].Children)
 	if n != 3 && n != 4 {
 		return nil, fmt.Errorf("invalid extended response children (len=%d)", n)
 	}
-	result := Result(readInt64(p.Children[1].Children[0]))
+	result := ldaputil.Result(readInt64(p.Children[1].Children[0]))
 	matched := readString(p.Children[1].Children[1])
 	var value *ber.Packet
 	if n == 4 {

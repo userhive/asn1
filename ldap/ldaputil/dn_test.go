@@ -1,11 +1,32 @@
-package ldapclient
+package ldaputil
 
 import (
 	"reflect"
 	"testing"
 )
 
-func TestSuccessfulDNParsing(t *testing.T) {
+func TestParseDNBad(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{
+		"*":                       "DN ended with incomplete type, value pair",
+		"cn=Jim\\0Test":           "failed to decode escaped character: encoding/hex: invalid byte: U+0054 'T'",
+		"cn=Jim\\0":               "got corrupted escaped character",
+		"DC=example,=net":         "DN ended with incomplete type, value pair",
+		"1=#0402486":              "failed to decode BER encoding: encoding/hex: odd length hex string",
+		"test,DC=example,DC=com":  "incomplete type, value pair",
+		"=test,DC=example,DC=com": "incomplete type, value pair",
+	}
+	for i, test := range tests {
+		_, err := ParseDN(i)
+		if err == nil {
+			t.Errorf("Expected %s to fail parsing but succeeded\n", i)
+		} else if err.Error() != test {
+			t.Errorf("Unexpected error on %s:\n%s\nvs.\n%s\n", i, test, err.Error())
+		}
+	}
+}
+
+func TestParseDN(t *testing.T) {
 	t.Parallel()
 	tests := map[string]DN{
 		"": {[]*RelativeDN{}},
@@ -85,28 +106,7 @@ func TestSuccessfulDNParsing(t *testing.T) {
 	}
 }
 
-func TestErrorDNParsing(t *testing.T) {
-	t.Parallel()
-	tests := map[string]string{
-		"*":                       "DN ended with incomplete type, value pair",
-		"cn=Jim\\0Test":           "failed to decode escaped character: encoding/hex: invalid byte: U+0054 'T'",
-		"cn=Jim\\0":               "got corrupted escaped character",
-		"DC=example,=net":         "DN ended with incomplete type, value pair",
-		"1=#0402486":              "failed to decode BER encoding: encoding/hex: odd length hex string",
-		"test,DC=example,DC=com":  "incomplete type, value pair",
-		"=test,DC=example,DC=com": "incomplete type, value pair",
-	}
-	for i, test := range tests {
-		_, err := ParseDN(i)
-		if err == nil {
-			t.Errorf("Expected %s to fail parsing but succeeded\n", i)
-		} else if err.Error() != test {
-			t.Errorf("Unexpected error on %s:\n%s\nvs.\n%s\n", i, test, err.Error())
-		}
-	}
-}
-
-func TestDNEqual(t *testing.T) {
+func TestParseDNEqual(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		A     string
@@ -178,7 +178,7 @@ func TestDNEqual(t *testing.T) {
 	}
 }
 
-func TestDNAncestor(t *testing.T) {
+func TestParseDNAncestor(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		A        string

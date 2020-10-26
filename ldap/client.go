@@ -1,4 +1,4 @@
-package ldapclient
+package ldap
 
 import (
 	"bytes"
@@ -23,6 +23,7 @@ import (
 	"github.com/userhive/asn1/ber"
 	"github.com/userhive/asn1/ldap/control"
 	"github.com/userhive/asn1/ldap/filter"
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 // debugging type
@@ -72,7 +73,7 @@ type PacketResponse struct {
 // ReadPacket returns the packet or an error
 func (pr *PacketResponse) ReadPacket() (*ber.Packet, error) {
 	if (pr == nil) || (pr.Packet == nil && pr.Error == nil) {
-		return nil, NewError(ErrorNetwork, errors.New("ldap: could not retrieve response"))
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: could not retrieve response"))
 	}
 	return pr.Packet, pr.Error
 }
@@ -142,47 +143,46 @@ type DialOpt func(*DialContext)
 // DialWithDialer updates net.Dialer in DialContext.
 func DialWithDialer(d *net.Dialer) DialOpt {
 	return func(dc *DialContext) {
-		dc.d = d
+		dc.Dialer = d
 	}
 }
 
 // DialWithTLSConfig updates tls.Config in DialContext.
 func DialWithTLSConfig(tc *tls.Config) DialOpt {
 	return func(dc *DialContext) {
-		dc.tc = tc
+		dc.TLSConfig = tc
 	}
 }
 
 // DialContext contains necessary parameters to dial the given ldap URL.
 type DialContext struct {
-	d  *net.Dialer
-	tc *tls.Config
+	Dialer    *net.Dialer
+	TLSConfig *tls.Config
 }
 
-func (dc *DialContext) dial(u *url.URL) (net.Conn, error) {
+func (dc *DialContext) Dial(u *url.URL) (net.Conn, error) {
 	if u.Scheme == "ldapi" {
 		if u.Path == "" || u.Path == "/" {
 			u.Path = "/var/run/slapd/ldapi"
 		}
-		return dc.d.Dial("unix", u.Path)
+		return dc.Dialer.Dial("unix", u.Path)
 	}
 	host, port, err := net.SplitHostPort(u.Host)
 	if err != nil {
 		// we assume that error is due to missing port
-		host = u.Host
-		port = ""
+		host, port = u.Host, ""
 	}
 	switch u.Scheme {
 	case "ldap":
 		if port == "" {
 			port = "389"
 		}
-		return dc.d.Dial("tcp", net.JoinHostPort(host, port))
+		return dc.Dialer.Dial("tcp", net.JoinHostPort(host, port))
 	case "ldaps":
 		if port == "" {
 			port = "636"
 		}
-		return tls.DialWithDialer(dc.d, "tcp", net.JoinHostPort(host, port), dc.tc)
+		return tls.DialWithDialer(dc.Dialer, "tcp", net.JoinHostPort(host, port), dc.TLSConfig)
 	}
 	return nil, fmt.Errorf("Unknown scheme '%s'", u.Scheme)
 }
@@ -193,11 +193,11 @@ func (dc *DialContext) dial(u *url.URL) (net.Conn, error) {
 func Dial(network, addr string) (*Client, error) {
 	c, err := net.DialTimeout(network, addr, DefaultTimeout)
 	if err != nil {
-		return nil, NewError(ErrorNetwork, err)
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, err)
 	}
-	conn := NewClient(c, false)
-	conn.Start()
-	return conn, nil
+	cl := NewClient(c, false)
+	cl.Start()
+	return cl, nil
 }
 
 // DialTLS connects to the given address on the given network using tls.Dial
@@ -206,11 +206,11 @@ func Dial(network, addr string) (*Client, error) {
 func DialTLS(network, addr string, config *tls.Config) (*Client, error) {
 	c, err := tls.DialWithDialer(&net.Dialer{Timeout: DefaultTimeout}, network, addr, config)
 	if err != nil {
-		return nil, NewError(ErrorNetwork, err)
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, err)
 	}
-	conn := NewClient(c, true)
-	conn.Start()
-	return conn, nil
+	cl := NewClient(c, true)
+	cl.Start()
+	return cl, nil
 }
 
 // DialURL connects to the given ldap URL.
@@ -219,22 +219,22 @@ func DialTLS(network, addr string, config *tls.Config) (*Client, error) {
 func DialURL(addr string, opts ...DialOpt) (*Client, error) {
 	u, err := url.Parse(addr)
 	if err != nil {
-		return nil, NewError(ErrorNetwork, err)
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, err)
 	}
 	var dc DialContext
 	for _, opt := range opts {
 		opt(&dc)
 	}
-	if dc.d == nil {
-		dc.d = &net.Dialer{Timeout: DefaultTimeout}
+	if dc.Dialer == nil {
+		dc.Dialer = &net.Dialer{Timeout: DefaultTimeout}
 	}
-	c, err := dc.dial(u)
+	c, err := dc.Dial(u)
 	if err != nil {
-		return nil, NewError(ErrorNetwork, err)
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, err)
 	}
-	conn := NewClient(c, u.Scheme == "ldaps")
-	conn.Start()
-	return conn, nil
+	cl := NewClient(c, u.Scheme == "ldaps")
+	cl.Start()
+	return cl, nil
 }
 
 // NewClient returns a new Client using conn for network I/O.
@@ -303,11 +303,11 @@ func (cl *Client) nextMessageID() int64 {
 // StartTLS sends the command to start a TLS session and then creates a new TLS Client
 func (cl *Client) StartTLS(config *tls.Config) error {
 	if cl.isTLS {
-		return NewError(ErrorNetwork, errors.New("ldap: already encrypted"))
+		return ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: already encrypted"))
 	}
 	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
-	req := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedRequest.Tag(), nil, "Start TLS")
+	req := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationExtendedRequest.Tag(), nil, "Start TLS")
 	req.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, "1.3.6.1.4.1.1466.20037", "TLS Extended Command"))
 	p.AppendChild(req)
 	cl.Debug.PrintPacket(p)
@@ -319,7 +319,7 @@ func (cl *Client) StartTLS(config *tls.Config) error {
 	cl.Debug.Printf("%d: waiting for response", msgCtx.id)
 	res, ok := <-msgCtx.responses
 	if !ok {
-		return NewError(ErrorNetwork, errors.New("ldap: response channel closed"))
+		return ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: response channel closed"))
 	}
 	p, err = res.ReadPacket()
 	cl.Debug.Printf("%d: got response %p", msgCtx.id, p)
@@ -327,17 +327,17 @@ func (cl *Client) StartTLS(config *tls.Config) error {
 		return err
 	}
 	if cl.Debug {
-		if err := AddLDAPDescriptions(p); err != nil {
+		if err := ldaputil.AddDescriptions(p); err != nil {
 			cl.Close()
 			return err
 		}
 		cl.Debug.PrintPacket(p)
 	}
-	if err := GetLDAPError(p); err == nil {
+	if err := ldaputil.GetLDAPError(p); err == nil {
 		conn := tls.Client(cl.conn, config)
 		if connErr := conn.Handshake(); connErr != nil {
 			cl.Close()
-			return NewError(ErrorNetwork, fmt.Errorf("TLS handshake failed (%v)", connErr))
+			return ldaputil.NewError(ldaputil.ResultNetworkError, fmt.Errorf("TLS handshake failed (%v)", connErr))
 		}
 		cl.isTLS = true
 		cl.conn = conn
@@ -365,18 +365,18 @@ func (cl *Client) SendMessage(p *ber.Packet) (*MessageContext, error) {
 
 func (cl *Client) SendMessageWithFlags(p *ber.Packet, flags SendMessageFlags) (*MessageContext, error) {
 	if cl.IsClosing() {
-		return nil, NewError(ErrorNetwork, errors.New("ldap: connection closed"))
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: connection closed"))
 	}
 	cl.messageMutex.Lock()
 	cl.Debug.Printf("flags&startTLS = %d", flags&startTLS)
 	if cl.isStartingTLS {
 		cl.messageMutex.Unlock()
-		return nil, NewError(ErrorNetwork, errors.New("ldap: connection is in startls phase"))
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: connection is in startls phase"))
 	}
 	if flags&startTLS != 0 {
 		if cl.outstandingRequests != 0 {
 			cl.messageMutex.Unlock()
-			return nil, NewError(ErrorNetwork, errors.New("ldap: cannot StartTLS with outstanding requests"))
+			return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: cannot StartTLS with outstanding requests"))
 		}
 		cl.isStartingTLS = true
 	}
@@ -396,9 +396,9 @@ func (cl *Client) SendMessageWithFlags(p *ber.Packet, flags SendMessageFlags) (*
 	}
 	if !cl.sendProcessMessage(message) {
 		if cl.IsClosing() {
-			return nil, NewError(ErrorNetwork, errors.New("ldap: connection closed"))
+			return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: connection closed"))
 		}
-		return nil, NewError(ErrorNetwork, errors.New("ldap: could not send message for unknown reason"))
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: could not send message for unknown reason"))
 	}
 	return message.Context, nil
 }
@@ -542,7 +542,7 @@ func (cl *Client) reader() {
 			}
 			return
 		}
-		if err := AddLDAPDescriptions(p); err != nil {
+		if err := ldaputil.AddDescriptions(p); err != nil {
 			cl.Debug.Printf("descriptions error: %s", err)
 		}
 		if len(p.Children) == 0 {
@@ -565,9 +565,22 @@ func (cl *Client) reader() {
 	}
 }
 
-func (cl *Client) Do(req Request) (*MessageContext, error) {
-	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
+func (cl *Client) Do(req ClientRequest) (*MessageContext, error) {
+	p := ber.NewPacket(
+		ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+		"LDAP Request",
+	)
+	p.AppendChild(
+		ber.NewInteger(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			cl.nextMessageID(),
+			"MessageID",
+		),
+	)
 	if err := req.AppendTo(p); err != nil {
 		return nil, err
 	}
@@ -586,7 +599,7 @@ func (cl *Client) ReadPacket(msgCtx *MessageContext) (*ber.Packet, error) {
 	cl.Debug.Printf("%d: waiting for response", msgCtx.id)
 	res, ok := <-msgCtx.responses
 	if !ok {
-		return nil, NewError(ErrorNetwork, errRespChanClosed)
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errRespChanClosed)
 	}
 	p, err := res.ReadPacket()
 	cl.Debug.Printf("%d: got response %p", msgCtx.id, p)
@@ -594,10 +607,10 @@ func (cl *Client) ReadPacket(msgCtx *MessageContext) (*ber.Packet, error) {
 		return nil, err
 	}
 	if p == nil {
-		return nil, NewError(ErrorNetwork, errCouldNotRetMsg)
+		return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errCouldNotRetMsg)
 	}
 	if cl.Debug {
-		if err = AddLDAPDescriptions(p); err != nil {
+		if err = ldaputil.AddDescriptions(p); err != nil {
 			return nil, err
 		}
 		cl.Debug.PrintPacket(p)
@@ -606,9 +619,9 @@ func (cl *Client) ReadPacket(msgCtx *MessageContext) (*ber.Packet, error) {
 }
 
 // SimpleBind performs the simple bind operation defined in the given request
-func (cl *Client) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResult, error) {
+func (cl *Client) SimpleBind(simpleBindRequest *ClientSimpleBindRequest) (*SimpleBindResult, error) {
 	if simpleBindRequest.Password == "" && !simpleBindRequest.AllowEmptyPassword {
-		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
+		return nil, ldaputil.NewError(ldaputil.ResultEmptyPasswordError, errors.New("ldap: empty password not allowed by the client"))
 	}
 	msgCtx, err := cl.Do(simpleBindRequest)
 	if err != nil {
@@ -631,7 +644,7 @@ func (cl *Client) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindR
 			result.Controls = append(result.Controls, decodedChild)
 		}
 	}
-	err = GetLDAPError(p)
+	err = ldaputil.GetLDAPError(p)
 	return result, err
 }
 
@@ -640,7 +653,7 @@ func (cl *Client) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindR
 // It does not allow unauthenticated bind (i.e. empty password). Use the UnauthenticatedBind method
 // for that.
 func (cl *Client) Bind(username, password string) error {
-	req := &SimpleBindRequest{
+	req := &ClientSimpleBindRequest{
 		Username:           username,
 		Password:           password,
 		AllowEmptyPassword: false,
@@ -657,7 +670,7 @@ func (cl *Client) Bind(username, password string) error {
 // See https://tools.ietf.org/html/rfc4513#section-5.1.2 .
 // See https://tools.ietf.org/html/rfc4513#section-6.3.1 .
 func (cl *Client) UnauthenticatedBind(username string) error {
-	req := &SimpleBindRequest{
+	req := &ClientSimpleBindRequest{
 		Username:           username,
 		Password:           "",
 		AllowEmptyPassword: true,
@@ -668,7 +681,7 @@ func (cl *Client) UnauthenticatedBind(username string) error {
 
 // MD5Bind performs a digest-md5 bind with the given host, username and password.
 func (cl *Client) MD5Bind(host, username, password string) error {
-	req := &DigestMD5BindRequest{
+	req := &ClientDigestMD5BindRequest{
 		Host:     host,
 		Username: username,
 		Password: password,
@@ -678,9 +691,9 @@ func (cl *Client) MD5Bind(host, username, password string) error {
 }
 
 // DigestMD5Bind performs the digest-md5 bind operation defined in the given request
-func (cl *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*DigestMD5BindResult, error) {
+func (cl *Client) DigestMD5Bind(digestMD5BindRequest *ClientDigestMD5BindRequest) (*DigestMD5BindResult, error) {
 	if digestMD5BindRequest.Password == "" {
-		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
+		return nil, ldaputil.NewError(ldaputil.ResultEmptyPasswordError, errors.New("ldap: empty password not allowed by the client"))
 	}
 	msgCtx, err := cl.Do(digestMD5BindRequest)
 	if err != nil {
@@ -693,7 +706,7 @@ func (cl *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Di
 	}
 	cl.Debug.Printf("%d: got response %p", msgCtx.id, p)
 	if cl.Debug {
-		if err = AddLDAPDescriptions(p); err != nil {
+		if err = ldaputil.AddDescriptions(p); err != nil {
 			return nil, err
 		}
 		p.PrettyPrint(os.Stdout, 0)
@@ -706,17 +719,17 @@ func (cl *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Di
 		if len(p.Children[1].Children) == 4 {
 			child := p.Children[1].Children[0]
 			if child.Tag != ber.TagEnumerated {
-				return result, GetLDAPError(p)
+				return result, ldaputil.GetLDAPError(p)
 			}
 			if child.Value.(int64) != 14 {
-				return result, GetLDAPError(p)
+				return result, ldaputil.GetLDAPError(p)
 			}
 			child = p.Children[1].Children[3]
 			if child.Tag != ber.TagObjectDescriptor {
-				return result, GetLDAPError(p)
+				return result, ldaputil.GetLDAPError(p)
 			}
 			if child.Data == nil {
-				return result, GetLDAPError(p)
+				return result, ldaputil.GetLDAPError(p)
 			}
 			data, _ := ioutil.ReadAll(child.Data)
 			params, err = parseParams(string(data))
@@ -734,7 +747,7 @@ func (cl *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Di
 		)
 		p = ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 		p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
-		request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+		request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 		request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 		request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
 		auth := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 3, "", "authentication")
@@ -749,7 +762,7 @@ func (cl *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Di
 		defer cl.FinishMessage(msgCtx)
 		res, ok := <-msgCtx.responses
 		if !ok {
-			return nil, NewError(ErrorNetwork, errors.New("ldap: response channel closed"))
+			return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: response channel closed"))
 		}
 		p, err = res.ReadPacket()
 		cl.Debug.Printf("%d: got response %p", msgCtx.id, p)
@@ -757,14 +770,14 @@ func (cl *Client) DigestMD5Bind(digestMD5BindRequest *DigestMD5BindRequest) (*Di
 			return nil, fmt.Errorf("read packet: %s", err)
 		}
 	}
-	err = GetLDAPError(p)
+	err = ldaputil.GetLDAPError(p)
 	return result, err
 }
 
 // Compare checks to see if the attribute of the dn matches value. Returns true if it does otherwise
 // false with any error that occurs if any.
 func (cl *Client) Compare(dn, attribute, value string) (bool, error) {
-	msgCtx, err := cl.Do(&CompareRequest{
+	msgCtx, err := cl.Do(&ClientCompareRequest{
 		DN:        dn,
 		Attribute: attribute,
 		Value:     value,
@@ -777,12 +790,12 @@ func (cl *Client) Compare(dn, attribute, value string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if p.Children[1].Tag == ApplicationCompareResponse.Tag() {
-		err := GetLDAPError(p)
+	if p.Children[1].Tag == ldaputil.ApplicationCompareResponse.Tag() {
+		err := ldaputil.GetLDAPError(p)
 		switch {
-		case IsErrorWithCode(err, ResultCompareTrue):
+		case ldaputil.IsErrorWithCode(err, ldaputil.ResultCompareTrue):
 			return true, nil
-		case IsErrorWithCode(err, ResultCompareFalse):
+		case ldaputil.IsErrorWithCode(err, ldaputil.ResultCompareFalse):
 			return false, nil
 		default:
 			return false, err
@@ -792,7 +805,7 @@ func (cl *Client) Compare(dn, attribute, value string) (bool, error) {
 }
 
 // Del executes the given delete request
-func (cl *Client) Del(delRequest *DeleteRequest) error {
+func (cl *Client) Del(delRequest *ClientDeleteRequest) error {
 	msgCtx, err := cl.Do(delRequest)
 	if err != nil {
 		return err
@@ -802,8 +815,8 @@ func (cl *Client) Del(delRequest *DeleteRequest) error {
 	if err != nil {
 		return err
 	}
-	if p.Children[1].Tag == ApplicationDeleteResponse.Tag() {
-		err := GetLDAPError(p)
+	if p.Children[1].Tag == ldaputil.ApplicationDeleteResponse.Tag() {
+		err := ldaputil.GetLDAPError(p)
 		if err != nil {
 			return err
 		}
@@ -815,7 +828,7 @@ func (cl *Client) Del(delRequest *DeleteRequest) error {
 
 // ModifyDN renames the given DN and optionally move to another base (when the "newSup" argument
 // to NewModifyDNRequest() is not "").
-func (cl *Client) ModifyDN(m *ModifyDNRequest) error {
+func (cl *Client) ModifyDN(m *ClientModifyDNRequest) error {
 	msgCtx, err := cl.Do(m)
 	if err != nil {
 		return err
@@ -825,8 +838,8 @@ func (cl *Client) ModifyDN(m *ModifyDNRequest) error {
 	if err != nil {
 		return err
 	}
-	if p.Children[1].Tag == ApplicationModifyDNResponse.Tag() {
-		err := GetLDAPError(p)
+	if p.Children[1].Tag == ldaputil.ApplicationModifyDNResponse.Tag() {
+		err := ldaputil.GetLDAPError(p)
 		if err != nil {
 			return err
 		}
@@ -837,7 +850,7 @@ func (cl *Client) ModifyDN(m *ModifyDNRequest) error {
 }
 
 // Add performs the given AddRequest
-func (cl *Client) Add(addRequest *AddRequest) error {
+func (cl *Client) Add(addRequest *ClientAddRequest) error {
 	msgCtx, err := cl.Do(addRequest)
 	if err != nil {
 		return err
@@ -847,8 +860,8 @@ func (cl *Client) Add(addRequest *AddRequest) error {
 	if err != nil {
 		return err
 	}
-	if p.Children[1].Tag == ApplicationAddResponse.Tag() {
-		err := GetLDAPError(p)
+	if p.Children[1].Tag == ldaputil.ApplicationAddResponse.Tag() {
+		err := ldaputil.GetLDAPError(p)
 		if err != nil {
 			return err
 		}
@@ -859,7 +872,7 @@ func (cl *Client) Add(addRequest *AddRequest) error {
 }
 
 // Modify performs the ModifyRequest
-func (cl *Client) Modify(modifyRequest *ModifyRequest) error {
+func (cl *Client) Modify(modifyRequest *ClientModifyRequest) error {
 	msgCtx, err := cl.Do(modifyRequest)
 	if err != nil {
 		return err
@@ -869,8 +882,8 @@ func (cl *Client) Modify(modifyRequest *ModifyRequest) error {
 	if err != nil {
 		return err
 	}
-	if p.Children[1].Tag == ApplicationModifyResponse.Tag() {
-		err := GetLDAPError(p)
+	if p.Children[1].Tag == ldaputil.ApplicationModifyResponse.Tag() {
+		err := ldaputil.GetLDAPError(p)
 		if err != nil {
 			return err
 		}
@@ -881,7 +894,7 @@ func (cl *Client) Modify(modifyRequest *ModifyRequest) error {
 }
 
 // PasswordModify performs the modification request
-func (cl *Client) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (*PasswordModifyResult, error) {
+func (cl *Client) PasswordModify(passwordModifyRequest *ClientPasswordModifyRequest) (*PasswordModifyResult, error) {
 	msgCtx, err := cl.Do(passwordModifyRequest)
 	if err != nil {
 		return nil, err
@@ -892,10 +905,10 @@ func (cl *Client) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (
 		return nil, err
 	}
 	result := &PasswordModifyResult{}
-	if p.Children[1].Tag == ApplicationExtendedResponse.Tag() {
-		err := GetLDAPError(p)
+	if p.Children[1].Tag == ldaputil.ApplicationExtendedResponse.Tag() {
+		err := ldaputil.GetLDAPError(p)
 		if err != nil {
-			if IsErrorWithCode(err, ResultReferral) {
+			if ldaputil.IsErrorWithCode(err, ldaputil.ResultReferral) {
 				for _, child := range p.Children[1].Children {
 					if child.Tag == 3 {
 						result.Referral = child.Children[0].Value.(string)
@@ -905,7 +918,7 @@ func (cl *Client) PasswordModify(passwordModifyRequest *PasswordModifyRequest) (
 			return result, err
 		}
 	} else {
-		return nil, NewError(ErrorUnexpectedResponse, fmt.Errorf("unexpected Response: %d", p.Children[1].Tag))
+		return nil, ldaputil.NewError(ldaputil.ResultUnexpectedResponseError, fmt.Errorf("unexpected Response: %d", p.Children[1].Tag))
 	}
 	extendedResponse := p.Children[1]
 	for _, child := range extendedResponse.Children {
@@ -939,12 +952,12 @@ func (cl *Client) ExternalBind() error {
 	if err != nil {
 		return err
 	}
-	return GetLDAPError(p)
+	return ldaputil.GetLDAPError(p)
 }
 
 // NTLMBind performs an NTLMSSP Bind with the given domain, username and password
 func (cl *Client) NTLMBind(domain, username, password string) error {
-	req := &NTLMBindRequest{
+	req := &ClientNTLMBindRequest{
 		Domain:   domain,
 		Username: username,
 		Password: password,
@@ -955,7 +968,7 @@ func (cl *Client) NTLMBind(domain, username, password string) error {
 
 // NTLMBindWithHash performs an NTLM Bind with an NTLM hash instead of plaintext password (pass-the-hash)
 func (cl *Client) NTLMBindWithHash(domain, username, hash string) error {
-	req := &NTLMBindRequest{
+	req := &ClientNTLMBindRequest{
 		Domain:   domain,
 		Username: username,
 		Hash:     hash,
@@ -965,9 +978,9 @@ func (cl *Client) NTLMBindWithHash(domain, username, hash string) error {
 }
 
 // NTLMChallengeBind performs the NTLMSSP bind operation defined in the given request
-func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBindResult, error) {
+func (cl *Client) NTLMChallengeBind(ntlmBindRequest *ClientNTLMBindRequest) (*NTLMBindResult, error) {
 	if ntlmBindRequest.Password == "" && ntlmBindRequest.Hash == "" {
-		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
+		return nil, ldaputil.NewError(ldaputil.ResultEmptyPasswordError, errors.New("ldap: empty password not allowed by the client"))
 	}
 	msgCtx, err := cl.Do(ntlmBindRequest)
 	if err != nil {
@@ -980,7 +993,7 @@ func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBind
 	}
 	cl.Debug.Printf("%d: got response %p", msgCtx.id, p)
 	if cl.Debug {
-		if err = AddLDAPDescriptions(p); err != nil {
+		if err = ldaputil.AddDescriptions(p); err != nil {
 			return nil, err
 		}
 		p.PrettyPrint(os.Stdout, 0)
@@ -996,7 +1009,7 @@ func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBind
 			ntlmsspChallenge = child.ByteValue
 			// Check to make sure we got the right message. It will always start with NTLMSSP
 			if !bytes.Equal(ntlmsspChallenge[:7], []byte("NTLMSSP")) {
-				return result, GetLDAPError(p)
+				return result, ldaputil.GetLDAPError(p)
 			}
 			cl.Debug.Printf("%d: found ntlmssp challenge", msgCtx.id)
 		}
@@ -1017,7 +1030,7 @@ func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBind
 		}
 		p = ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 		p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
-		request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+		request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 		request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 		request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
 		// append the challenge response message as a TagEmbeddedPDV BER value
@@ -1031,7 +1044,7 @@ func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBind
 		defer cl.FinishMessage(msgCtx)
 		res, ok := <-msgCtx.responses
 		if !ok {
-			return nil, NewError(ErrorNetwork, errors.New("ldap: response channel closed"))
+			return nil, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: response channel closed"))
 		}
 		p, err = res.ReadPacket()
 		cl.Debug.Printf("%d: got response %p", msgCtx.id, p)
@@ -1039,21 +1052,21 @@ func (cl *Client) NTLMChallengeBind(ntlmBindRequest *NTLMBindRequest) (*NTLMBind
 			return nil, fmt.Errorf("read packet: %s", err)
 		}
 	}
-	err = GetLDAPError(p)
+	err = ldaputil.GetLDAPError(p)
 	return result, err
 }
 
 // SearchWithPaging accepts a search request and desired page size in order to execute LDAP queries to fulfill the
 // search request. All paged LDAP query responses will be buffered and the final result will be returned atomically.
 // The following four cases are possible given the arguments:
-//  - given SearchRequest missing a control of type control.OIDPaging: we will add one with the desired paging size
-//  - given SearchRequest contains a control of type control.OIDPaging that isn't actually a Paging: fail without issuing any queries
-//  - given SearchRequest contains a control of type control.OIDPaging with pagingSize equal to the size requested: no change to the search request
-//  - given SearchRequest contains a control of type control.OIDPaging with pagingSize not equal to the size requested: fail without issuing any queries
+//  - given SearchRequest missing a control of type control.ControlPaging: we will add one with the desired paging size
+//  - given SearchRequest contains a control of type control.ControlPaging that isn't actually a Paging: fail without issuing any queries
+//  - given SearchRequest contains a control of type control.ControlPaging with pagingSize equal to the size requested: no change to the search request
+//  - given SearchRequest contains a control of type control.ControlPaging with pagingSize not equal to the size requested: fail without issuing any queries
 // A requested pagingSize of 0 is interpreted as no limit by LDAP servers.
-func (cl *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32) (*SearchResult, error) {
+func (cl *Client) SearchWithPaging(searchRequest *ClientSearchRequest, pagingSize uint32) (*SearchResult, error) {
 	var pagingControl *control.Paging
-	c := control.Find(searchRequest.Controls, control.OIDPaging)
+	c := control.Find(searchRequest.Controls, control.ControlPaging.String())
 	if c == nil {
 		pagingControl = control.NewPaging(pagingSize)
 		searchRequest.Controls = append(searchRequest.Controls, pagingControl)
@@ -1075,7 +1088,7 @@ func (cl *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint
 			return searchResult, err
 		}
 		if result == nil {
-			return searchResult, NewError(ErrorNetwork, errors.New("ldap: packet not received"))
+			return searchResult, ldaputil.NewError(ldaputil.ResultNetworkError, errors.New("ldap: packet not received"))
 		}
 		for _, entry := range result.Entries {
 			searchResult.Entries = append(searchResult.Entries, entry)
@@ -1087,7 +1100,7 @@ func (cl *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint
 			searchResult.Controls = append(searchResult.Controls, control)
 		}
 		cl.Debug.Printf("Looking for Paging Control...")
-		pagingResult := control.Find(result.Controls, control.OIDPaging)
+		pagingResult := control.Find(result.Controls, control.ControlPaging.String())
 		if pagingResult == nil {
 			pagingControl = nil
 			cl.Debug.Printf("Could not find paging control.  Breaking...")
@@ -1110,7 +1123,7 @@ func (cl *Client) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint
 }
 
 // Search performs the given search request
-func (cl *Client) Search(searchRequest *SearchRequest) (*SearchResult, error) {
+func (cl *Client) Search(searchRequest *ClientSearchRequest) (*SearchResult, error) {
 	msgCtx, err := cl.Do(searchRequest)
 	if err != nil {
 		return nil, err
@@ -1141,7 +1154,7 @@ func (cl *Client) Search(searchRequest *SearchRequest) (*SearchResult, error) {
 			}
 			result.Entries = append(result.Entries, entry)
 		case 5:
-			err := GetLDAPError(p)
+			err := ldaputil.GetLDAPError(p)
 			if err != nil {
 				return result, err
 			}
@@ -1166,63 +1179,28 @@ var (
 	errCouldNotRetMsg = errors.New("ldap: could not retrieve message")
 )
 
-type Request interface {
+type ClientRequest interface {
 	AppendTo(*ber.Packet) error
 }
 
-type RequestFunc func(*ber.Packet) error
+type ClientRequestFunc func(*ber.Packet) error
 
-func (f RequestFunc) AppendTo(p *ber.Packet) error {
+func (f ClientRequestFunc) AppendTo(p *ber.Packet) error {
 	return f(p)
 }
-
-// Application is the ldap application type.
-type Application int
-
-func (app Application) String() string {
-	return app.Tag().String()
-}
-
-func (app Application) Tag() ber.Tag {
-	return ber.Tag(app)
-}
-
-// Application values.
-const (
-	ApplicationBindRequest           Application = 0
-	ApplicationBindResponse          Application = 1
-	ApplicationUnbindRequest         Application = 2
-	ApplicationSearchRequest         Application = 3
-	ApplicationSearchResultEntry     Application = 4
-	ApplicationSearchResultDone      Application = 5
-	ApplicationModifyRequest         Application = 6
-	ApplicationModifyResponse        Application = 7
-	ApplicationAddRequest            Application = 8
-	ApplicationAddResponse           Application = 9
-	ApplicationDeleteRequest         Application = 10
-	ApplicationDeleteResponse        Application = 11
-	ApplicationModifyDNRequest       Application = 12
-	ApplicationModifyDNResponse      Application = 13
-	ApplicationCompareRequest        Application = 14
-	ApplicationCompareResponse       Application = 15
-	ApplicationAbandonRequest        Application = 16
-	ApplicationSearchResultReference Application = 19
-	ApplicationExtendedRequest       Application = 23
-	ApplicationExtendedResponse      Application = 24
-)
 
 // DebugBinaryFile reads and prints packets from the given filename
 func DebugBinaryFile(fileName string) error {
 	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return NewError(ErrorDebugging, err)
+		return ldaputil.NewError(ldaputil.ResultDebuggingError, err)
 	}
 	fmt.Fprintf(os.Stdout, "---\n%s\n---", hex.Dump(file))
 	p, err := ber.ParseBytes(file)
 	if err != nil {
 		return fmt.Errorf("failed to decode packet: %s", err)
 	}
-	if err := AddLDAPDescriptions(p); err != nil {
+	if err := ldaputil.AddDescriptions(p); err != nil {
 		return err
 	}
 	p.PrettyPrint(os.Stdout, 0)
@@ -1230,14 +1208,14 @@ func DebugBinaryFile(fileName string) error {
 }
 
 // CompareRequest represents an LDAP CompareRequest operation.
-type CompareRequest struct {
+type ClientCompareRequest struct {
 	DN        string
 	Attribute string
 	Value     string
 }
 
-func (req *CompareRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareRequest.Tag(), nil, "Compare Request")
+func (req *ClientCompareRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationCompareRequest.Tag(), nil, "Compare Request")
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	ava := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "AttributeValueAssertion")
 	ava.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Attribute, "AttributeDesc"))
@@ -1248,15 +1226,15 @@ func (req *CompareRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // DeleteRequest implements an LDAP deletion request
-type DeleteRequest struct {
+type ClientDeleteRequest struct {
 	// DN is the name of the directory entry to delete
 	DN string
 	// Controls hold optional controls to send with the request
 	Controls []control.Control
 }
 
-func (req *DeleteRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypePrimitive, ApplicationDeleteRequest.Tag(), req.DN, "Del Request")
+func (req *ClientDeleteRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypePrimitive, ldaputil.ApplicationDeleteRequest.Tag(), req.DN, "Del Request")
 	p.Data.Write([]byte(req.DN))
 	envelope.AppendChild(p)
 	if len(req.Controls) > 0 {
@@ -1266,15 +1244,15 @@ func (req *DeleteRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // NewDeleteRequest creates a delete request for the given DN and controls
-func NewDeleteRequest(dn string, controls ...control.Control) *DeleteRequest {
-	return &DeleteRequest{
+func NewDeleteRequest(dn string, controls ...control.Control) *ClientDeleteRequest {
+	return &ClientDeleteRequest{
 		DN:       dn,
 		Controls: controls,
 	}
 }
 
 // ModifyDNRequest holds the request to modify a DN
-type ModifyDNRequest struct {
+type ClientModifyDNRequest struct {
 	DN           string
 	NewRDN       string
 	DeleteOldRDN bool
@@ -1293,8 +1271,8 @@ type ModifyDNRequest struct {
 //   mdnReq := NewModifyDNRequest("uid=someone,dc=example,dc=org", "uid=newname", true, "")
 // will setup the request to just rename uid=someone,dc=example,dc=org to
 // uid=newname,dc=example,dc=org.
-func NewModifyDNRequest(dn string, rdn string, delOld bool, newSup string) *ModifyDNRequest {
-	return &ModifyDNRequest{
+func NewModifyDNRequest(dn string, rdn string, delOld bool, newSup string) *ClientModifyDNRequest {
+	return &ClientModifyDNRequest{
 		DN:           dn,
 		NewRDN:       rdn,
 		DeleteOldRDN: delOld,
@@ -1302,8 +1280,8 @@ func NewModifyDNRequest(dn string, rdn string, delOld bool, newSup string) *Modi
 	}
 }
 
-func (req *ModifyDNRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyDNRequest.Tag(), nil, "Modify DN Request")
+func (req *ClientModifyDNRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationModifyDNRequest.Tag(), nil, "Modify DN Request")
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.NewRDN, "New RDN"))
 	if req.DeleteOldRDN {
@@ -1320,21 +1298,21 @@ func (req *ModifyDNRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // AddRequest represents an LDAP AddRequest operation
-type AddRequest struct {
+type ClientAddRequest struct {
 	// DN identifies the entry being added
 	DN string
 	// Attributes list the attributes of the new entry
-	Attributes []Attribute
+	Attributes []ldaputil.Attribute
 	// Controls hold optional controls to send with the request
 	Controls []control.Control
 }
 
-func (req *AddRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationAddRequest.Tag(), nil, "Add Request")
+func (req *ClientAddRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationAddRequest.Tag(), nil, "Add Request")
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	attributes := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes")
 	for _, attribute := range req.Attributes {
-		attributes.AppendChild(attribute.encode())
+		attributes.AppendChild(attribute.Encode())
 	}
 	p.AppendChild(attributes)
 	envelope.AppendChild(p)
@@ -1345,20 +1323,20 @@ func (req *AddRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // Attribute adds an attribute with the given type and values
-func (req *AddRequest) Attribute(attrType string, attrVals []string) {
-	req.Attributes = append(req.Attributes, Attribute{Type: attrType, Vals: attrVals})
+func (req *ClientAddRequest) Attribute(attrType string, attrVals []string) {
+	req.Attributes = append(req.Attributes, ldaputil.Attribute{Type: attrType, Vals: attrVals})
 }
 
 // NewAddRequest returns an AddRequest for the given DN, with no attributes
-func NewAddRequest(dn string, controls ...control.Control) *AddRequest {
-	return &AddRequest{
+func NewAddRequest(dn string, controls ...control.Control) *ClientAddRequest {
+	return &ClientAddRequest{
 		DN:       dn,
 		Controls: controls,
 	}
 }
 
 // SimpleBindRequest represents a username/password bind operation
-type SimpleBindRequest struct {
+type ClientSimpleBindRequest struct {
 	// Username is the name of the Directory object that the client wishes to bind as
 	Username string
 	// Password is the credentials to bind with
@@ -1376,8 +1354,8 @@ type SimpleBindResult struct {
 }
 
 // NewSimpleBindRequest returns a bind request
-func NewSimpleBindRequest(username string, password string, controls ...control.Control) *SimpleBindRequest {
-	return &SimpleBindRequest{
+func NewSimpleBindRequest(username string, password string, controls ...control.Control) *ClientSimpleBindRequest {
+	return &ClientSimpleBindRequest{
 		Username:           username,
 		Password:           password,
 		Controls:           controls,
@@ -1385,8 +1363,8 @@ func NewSimpleBindRequest(username string, password string, controls ...control.
 	}
 }
 
-func (req *SimpleBindRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+func (req *ClientSimpleBindRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.Username, "User Name"))
 	p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, req.Password, "Password"))
@@ -1398,7 +1376,7 @@ func (req *SimpleBindRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // DigestMD5BindRequest represents a digest-md5 bind operation
-type DigestMD5BindRequest struct {
+type ClientDigestMD5BindRequest struct {
 	Host string
 	// Username is the name of the Directory object that the client wishes to bind as
 	Username string
@@ -1408,8 +1386,8 @@ type DigestMD5BindRequest struct {
 	Controls []control.Control
 }
 
-func (req *DigestMD5BindRequest) AppendTo(envelope *ber.Packet) error {
-	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+func (req *ClientDigestMD5BindRequest) AppendTo(envelope *ber.Packet) error {
+	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 	request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
 	auth := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 3, "", "authentication")
@@ -1523,8 +1501,8 @@ func randomBytes(n int) []byte {
 	return b
 }
 
-var externalBindRequest = RequestFunc(func(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+var externalBindRequest = ClientRequestFunc(func(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
 	saslAuth := ber.NewPacket(ber.ClassContext, ber.TypeConstructed, 3, "", "authentication")
@@ -1537,7 +1515,7 @@ var externalBindRequest = RequestFunc(func(envelope *ber.Packet) error {
 
 // NTLMBind performs an NTLMSSP bind leveraging https://github.com/Azure/go-ntlmssp
 // NTLMBindRequest represents an NTLMSSP bind operation
-type NTLMBindRequest struct {
+type ClientNTLMBindRequest struct {
 	// Domain is the AD Domain to authenticate too. If not specified, it will be grabbed from the NTLMSSP Challenge
 	Domain string
 	// Username is the name of the Directory object that the client wishes to bind as
@@ -1550,8 +1528,8 @@ type NTLMBindRequest struct {
 	Controls []control.Control
 }
 
-func (req *NTLMBindRequest) AppendTo(envelope *ber.Packet) error {
-	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+func (req *ClientNTLMBindRequest) AppendTo(envelope *ber.Packet) error {
+	request := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 	request.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	request.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "User Name"))
 	// generate an NTLMSSP Negotiation message for the  specified domain (it can be blank)
@@ -1575,45 +1553,45 @@ type NTLMBindResult struct {
 }
 
 // ModifyRequest as defined in https://tools.ietf.org/html/rfc4511
-type ModifyRequest struct {
+type ClientModifyRequest struct {
 	// DN is the distinguishedName of the directory entry to modify
 	DN string
 	// Changes contain the attributes to modify
-	Changes []Change
+	Changes []ldaputil.Change
 	// Controls hold optional controls to send with the request
 	Controls []control.Control
 }
 
 // Add appends the given attribute to the list of changes to be made
-func (req *ModifyRequest) Add(attrType string, attrVals []string) {
-	req.appendChange(AddAttribute, attrType, attrVals)
+func (req *ClientModifyRequest) Add(attrType string, attrVals []string) {
+	req.appendChange(ldaputil.AddAttribute, attrType, attrVals)
 }
 
 // Delete appends the given attribute to the list of changes to be made
-func (req *ModifyRequest) Delete(attrType string, attrVals []string) {
-	req.appendChange(DeleteAttribute, attrType, attrVals)
+func (req *ClientModifyRequest) Delete(attrType string, attrVals []string) {
+	req.appendChange(ldaputil.DeleteAttribute, attrType, attrVals)
 }
 
 // Replace appends the given attribute to the list of changes to be made
-func (req *ModifyRequest) Replace(attrType string, attrVals []string) {
-	req.appendChange(ReplaceAttribute, attrType, attrVals)
+func (req *ClientModifyRequest) Replace(attrType string, attrVals []string) {
+	req.appendChange(ldaputil.ReplaceAttribute, attrType, attrVals)
 }
 
 // Increment appends the given attribute to the list of changes to be made
-func (req *ModifyRequest) Increment(attrType string, attrVal string) {
-	req.appendChange(IncrementAttribute, attrType, []string{attrVal})
+func (req *ClientModifyRequest) Increment(attrType string, attrVal string) {
+	req.appendChange(ldaputil.IncrementAttribute, attrType, []string{attrVal})
 }
 
-func (req *ModifyRequest) appendChange(operation uint, attrType string, attrVals []string) {
-	req.Changes = append(req.Changes, Change{operation, PartialAttribute{Type: attrType, Vals: attrVals}})
+func (req *ClientModifyRequest) appendChange(operation uint, attrType string, attrVals []string) {
+	req.Changes = append(req.Changes, ldaputil.Change{operation, ldaputil.PartialAttribute{Type: attrType, Vals: attrVals}})
 }
 
-func (req *ModifyRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyRequest.Tag(), nil, "Modify Request")
+func (req *ClientModifyRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationModifyRequest.Tag(), nil, "Modify Request")
 	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.DN, "DN"))
 	changes := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Changes")
 	for _, change := range req.Changes {
-		changes.AppendChild(change.encode())
+		changes.AppendChild(change.Encode())
 	}
 	p.AppendChild(changes)
 	envelope.AppendChild(p)
@@ -1624,8 +1602,8 @@ func (req *ModifyRequest) AppendTo(envelope *ber.Packet) error {
 }
 
 // NewModifyRequest creates a modify request for the given DN
-func NewModifyRequest(dn string, controls ...control.Control) *ModifyRequest {
-	return &ModifyRequest{
+func NewModifyRequest(dn string, controls ...control.Control) *ClientModifyRequest {
+	return &ClientModifyRequest{
 		DN:       dn,
 		Controls: controls,
 	}
@@ -1636,7 +1614,7 @@ const (
 )
 
 // PasswordModifyRequest implements the Password Modify Extended Operation as defined in https://www.ietf.org/rfc/rfc3062.txt
-type PasswordModifyRequest struct {
+type ClientPasswordModifyRequest struct {
 	// UserIdentity is an optional string representation of the user associated with the request.
 	// This string may or may not be an LDAPDN [RFC2253].
 	// If no UserIdentity field is present, the request acts up upon the password of the user currently associated with the LDAP session
@@ -1655,8 +1633,8 @@ type PasswordModifyResult struct {
 	Referral string
 }
 
-func (req *PasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedRequest.Tag(), nil, "Password Modify Extended Operation")
+func (req *ClientPasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationExtendedRequest.Tag(), nil, "Password Modify Extended Operation")
 	p.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, passwordModifyOID, "Extended Request Name: Password Modify OID"))
 	extendedRequestValue := ber.NewPacket(ber.ClassContext, ber.TypePrimitive, 1, nil, "Extended Request Value: Password Modify Request")
 	passwordModifyRequestValue := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Password Modify Request")
@@ -1692,14 +1670,15 @@ func (req *PasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
 // an error or generate a new password that will be available in the
 // PasswordModifyResult.GeneratedPassword
 //
-func NewPasswordModifyRequest(userIdentity string, oldPassword string, newPassword string) *PasswordModifyRequest {
-	return &PasswordModifyRequest{
+func NewPasswordModifyRequest(userIdentity string, oldPassword string, newPassword string) *ClientPasswordModifyRequest {
+	return &ClientPasswordModifyRequest{
 		UserIdentity: userIdentity,
 		OldPassword:  oldPassword,
 		NewPassword:  newPassword,
 	}
 }
 
+/*
 // scope choices
 const (
 	ScopeBaseObject   = 0
@@ -1729,6 +1708,7 @@ var DerefMap = map[int]string{
 	DerefFindingBaseObj: "DerefFindingBaseObj",
 	DerefAlways:         "DerefAlways",
 }
+*/
 
 // NewEntry returns an Entry object with the specified distinguished name and attribute key-value pairs.
 // The map of attributes is accessed in alphabetical order of the keys in order to ensure that, for the
@@ -1909,26 +1889,68 @@ func (s *SearchResult) PrettyPrint(indent int) {
 }
 
 // SearchRequest represents a search request to send to the server
-type SearchRequest struct {
+type ClientSearchRequest struct {
 	BaseDN       string
-	Scope        int
-	DerefAliases int
+	Scope        Scope
+	DerefAliases DerefAliases
 	SizeLimit    int
-	TimeLimit    int
+	TimeLimit    time.Duration
 	TypesOnly    bool
 	Filter       string
 	Attributes   []string
 	Controls     []control.Control
 }
 
-func (req *SearchRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchRequest.Tag(), nil, "Search Request")
-	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, req.BaseDN, "Base DN"))
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, uint64(req.Scope), "Scope"))
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, uint64(req.DerefAliases), "Deref Aliases"))
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, uint64(req.SizeLimit), "Size Limit"))
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, uint64(req.TimeLimit), "Time Limit"))
-	p.AppendChild(ber.NewBoolean(ber.ClassUniversal, ber.TypePrimitive, ber.TagBoolean, req.TypesOnly, "Types Only"))
+func (req *ClientSearchRequest) AppendTo(envelope *ber.Packet) error {
+	p := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationSearchRequest.Tag(), nil, "Search Request")
+	p.AppendChild(
+		ber.NewString(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			req.BaseDN,
+			"Base DN",
+		),
+	)
+	p.AppendChild(
+		ber.NewInteger(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagEnumerated,
+			uint64(req.Scope),
+			"Scope",
+		),
+	)
+	p.AppendChild(
+		ber.NewInteger(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagEnumerated,
+			uint64(req.DerefAliases),
+			"Deref Aliases",
+		),
+	)
+	p.AppendChild(
+		ber.NewInteger(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			uint64(req.SizeLimit),
+			"Size Limit",
+		),
+	)
+	p.AppendChild(
+		ber.NewInteger(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			uint64(req.TimeLimit),
+			"Time Limit",
+		),
+	)
+	p.AppendChild(
+		ber.NewBoolean(ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagBoolean,
+			req.TypesOnly,
+			"Types Only",
+		),
+	)
 	// compile and encode filter
 	f, err := filter.Compile(req.Filter)
 	if err != nil {
@@ -1948,24 +1970,17 @@ func (req *SearchRequest) AppendTo(envelope *ber.Packet) error {
 	return nil
 }
 
-// NewSearchRequest creates a new search request
-func NewSearchRequest(
-	BaseDN string,
-	Scope, DerefAliases, SizeLimit, TimeLimit int,
-	TypesOnly bool,
-	Filter string,
-	Attributes []string,
-	Controls ...control.Control,
-) *SearchRequest {
-	return &SearchRequest{
-		BaseDN:       BaseDN,
-		Scope:        Scope,
-		DerefAliases: DerefAliases,
-		SizeLimit:    SizeLimit,
-		TimeLimit:    TimeLimit,
-		TypesOnly:    TypesOnly,
-		Filter:       Filter,
-		Attributes:   Attributes,
-		Controls:     Controls,
+// NewClientSearchRequest creates a new search request
+func NewClientSearchRequest(baseDN string, scope Scope, derefAliases DerefAliases, sizeLimit int, timeLimit time.Duration, typesOnly bool, filter string, attributes []string, controls ...control.Control) *ClientSearchRequest {
+	return &ClientSearchRequest{
+		BaseDN:       baseDN,
+		Scope:        scope,
+		DerefAliases: derefAliases,
+		SizeLimit:    sizeLimit,
+		TimeLimit:    timeLimit,
+		TypesOnly:    typesOnly,
+		Filter:       filter,
+		Attributes:   attributes,
+		Controls:     controls,
 	}
 }

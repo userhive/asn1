@@ -12,9 +12,9 @@ type VChuPasswordMustChange struct {
 	MustChange bool
 }
 
-// GetOID returns the OID
-func (c *VChuPasswordMustChange) GetOID() string {
-	return OIDVChuPasswordMustChange
+// GetControl returns the OID
+func (c *VChuPasswordMustChange) GetControl() string {
+	return ControlVChuPasswordMustChange.String()
 }
 
 // Encode returns the ber packet representation
@@ -25,11 +25,11 @@ func (c *VChuPasswordMustChange) Encode() *ber.Packet {
 // String returns a human-readable description
 func (c *VChuPasswordMustChange) String() string {
 	return fmt.Sprintf(
-		"Control OID: %s (%q)  Criticality: %t  MustChange: %v",
-		OIDMap[OIDVChuPasswordMustChange],
-		OIDVChuPasswordMustChange,
+		"Control OID: %s Criticality: %t  MustChange: %v",
+		ControlVChuPasswordMustChange,
 		false,
-		c.MustChange)
+		c.MustChange,
+	)
 }
 
 // VChuPasswordWarning implements the control described in https://tools.ietf.org/html/draft-vchu-ldap-pwd-policy-00
@@ -38,9 +38,9 @@ type VChuPasswordWarning struct {
 	Expire int64
 }
 
-// GetOID returns the OID
-func (c *VChuPasswordWarning) GetOID() string {
-	return OIDVChuPasswordWarning
+// GetControl returns the OID
+func (c *VChuPasswordWarning) GetControl() string {
+	return ControlVChuPasswordWarning.String()
 }
 
 // Encode returns the ber packet representation
@@ -51,9 +51,9 @@ func (c *VChuPasswordWarning) Encode() *ber.Packet {
 // String returns a human-readable description
 func (c *VChuPasswordWarning) String() string {
 	return fmt.Sprintf(
-		"Control OID: %s (%q)  Criticality: %t  Expire: %b",
-		OIDMap[OIDVChuPasswordWarning],
-		OIDVChuPasswordWarning,
+		"Control OID: %s Criticality: %t  Expire: %b",
+		ControlVChuPasswordWarning,
 		false,
-		c.Expire)
+		c.Expire,
+	)
 }

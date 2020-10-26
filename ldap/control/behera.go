@@ -59,15 +59,23 @@ func NewBeheraPasswordPolicy() *BeheraPasswordPolicy {
 	}
 }
 
-// GetOID returns the OID
-func (c *BeheraPasswordPolicy) GetOID() string {
-	return OIDBeheraPasswordPolicy
+// GetControl returns the Control
+func (c *BeheraPasswordPolicy) GetControl() string {
+	return string(ControlBeheraPasswordPolicy)
 }
 
 // Encode returns the ber packet representation
 func (c *BeheraPasswordPolicy) Encode() *ber.Packet {
 	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Control")
-	p.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, OIDBeheraPasswordPolicy, "Control OID ("+OIDMap[OIDBeheraPasswordPolicy]+")"))
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			ControlBeheraPasswordPolicy.String(),
+			"Control OID ("+ControlBeheraPasswordPolicy.String()+")",
+		),
+	)
 	return p
 }
 
@@ -75,8 +83,8 @@ func (c *BeheraPasswordPolicy) Encode() *ber.Packet {
 func (c *BeheraPasswordPolicy) String() string {
 	return fmt.Sprintf(
 		"Control OID: %s (%q)  Criticality: %t  Expire: %d  Grace: %d  Error: %d, ErrorString: %s",
-		OIDMap[OIDBeheraPasswordPolicy],
-		OIDBeheraPasswordPolicy,
+		ControlBeheraPasswordPolicy.String(),
+		ControlBeheraPasswordPolicy,
 		false,
 		c.Expire,
 		c.Grace,

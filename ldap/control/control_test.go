@@ -1,4 +1,4 @@
-package ldapclient
+package control
 
 import (
 	"bytes"
@@ -8,40 +8,39 @@ import (
 	"testing"
 
 	"github.com/userhive/asn1/ber"
-	"github.com/userhive/asn1/ldap/control"
 )
 
 func TestPaging(t *testing.T) {
 	t.Parallel()
-	runControlTest(t, control.NewPaging(0))
-	runControlTest(t, control.NewPaging(100))
+	runControlTest(t, NewPaging(0))
+	runControlTest(t, NewPaging(100))
 }
 
 func TestControlManageDsaIT(t *testing.T) {
 	t.Parallel()
-	runControlTest(t, control.NewManageDsaIT(true))
-	runControlTest(t, control.NewManageDsaIT(false))
+	runControlTest(t, NewManageDsaIT(true))
+	runControlTest(t, NewManageDsaIT(false))
 }
 
-func TestControlMicrosoftNotification(t *testing.T) {
+func TestControlMicrosoftChangeNotification(t *testing.T) {
 	t.Parallel()
-	runControlTest(t, control.NewMicrosoftNotification())
+	runControlTest(t, NewMicrosoftChangeNotification())
 }
 
-func TestControlMicrosoftShowDeleted(t *testing.T) {
+func TestControlMicrosoftShowDeletedObjects(t *testing.T) {
 	t.Parallel()
-	runControlTest(t, control.NewMicrosoftShowDeleted())
+	runControlTest(t, NewMicrosoftShowDeletedObjects())
 }
 
 func TestControlString(t *testing.T) {
 	t.Parallel()
-	runControlTest(t, control.NewString("x", true, "y"))
-	runControlTest(t, control.NewString("x", true, ""))
-	runControlTest(t, control.NewString("x", false, "y"))
-	runControlTest(t, control.NewString("x", false, ""))
+	runControlTest(t, NewString("x", true, "y"))
+	runControlTest(t, NewString("x", true, ""))
+	runControlTest(t, NewString("x", false, "y"))
+	runControlTest(t, NewString("x", false, ""))
 }
 
-func runControlTest(t *testing.T, originalControl control.Control) {
+func runControlTest(t *testing.T, originalControl Control) {
 	header := ""
 	if callerpc, _, line, ok := runtime.Caller(1); ok {
 		if caller := runtime.FuncForPC(callerpc); caller != nil {
@@ -51,7 +50,7 @@ func runControlTest(t *testing.T, originalControl control.Control) {
 	encodedPacket := originalControl.Encode()
 	encodedBytes := encodedPacket.Bytes()
 	// Decode directly from the encoded packet (ensures Value is correct)
-	fromPacket, err := control.Decode(encodedPacket)
+	fromPacket, err := Decode(encodedPacket)
 	if err != nil {
 		t.Errorf("%sdecoding encoded bytes control failed: %s", header, err)
 	}
@@ -66,7 +65,7 @@ func runControlTest(t *testing.T, originalControl control.Control) {
 	if err != nil {
 		t.Errorf("%sdecoding encoded bytes failed: %s", header, err)
 	}
-	fromBytes, err := control.Decode(p)
+	fromBytes, err := Decode(p)
 	if err != nil {
 		t.Errorf("%sdecoding control failed: %s", header, err)
 	}
@@ -80,43 +79,43 @@ func runControlTest(t *testing.T, originalControl control.Control) {
 
 func TestDescribeControlManageDsaIT(t *testing.T) {
 	t.Parallel()
-	runAddControlDescriptions(t, control.NewManageDsaIT(false), "Control Type (Manage DSA IT)")
-	runAddControlDescriptions(t, control.NewManageDsaIT(true), "Control Type (Manage DSA IT)", "Criticality")
+	runAddDescriptions(t, NewManageDsaIT(false), "Control Type ("+ControlManageDsaIT.String()+")")
+	runAddDescriptions(t, NewManageDsaIT(true), "Control Type ("+ControlManageDsaIT.String()+")", "Criticality")
 }
 
 func TestDescribePaging(t *testing.T) {
 	t.Parallel()
-	runAddControlDescriptions(t, control.NewPaging(100), "Control Type (Paging)", "Control Value (Paging)")
-	runAddControlDescriptions(t, control.NewPaging(0), "Control Type (Paging)", "Control Value (Paging)")
+	runAddDescriptions(t, NewPaging(100), "Control Type ("+ControlPaging.String()+")", "Control Value ("+ControlPaging.String()+")")
+	runAddDescriptions(t, NewPaging(0), "Control Type ("+ControlPaging.String()+")", "Control Value ("+ControlPaging.String()+")")
 }
 
-func TestDescribeControlMicrosoftNotification(t *testing.T) {
+func TestDescribeControlMicrosoftChangeNotification(t *testing.T) {
 	t.Parallel()
-	runAddControlDescriptions(t, control.NewMicrosoftNotification(), "Control Type (Change Notification - Microsoft)")
+	runAddDescriptions(t, NewMicrosoftChangeNotification(), "Control Type ("+ControlMicrosoftChangeNotification.String()+")")
 }
 
 func TestDescribeControlMicrosoftShowDeleted(t *testing.T) {
 	t.Parallel()
-	runAddControlDescriptions(t, control.NewMicrosoftShowDeleted(), "Control Type (Show Deleted Objects - Microsoft)")
+	runAddDescriptions(t, NewMicrosoftShowDeletedObjects(), "Control Type ("+ControlMicrosoftShowDeletedObjects.String()+")")
 }
 
 func TestDescribeControlString(t *testing.T) {
 	t.Parallel()
-	runAddControlDescriptions(t, control.NewString("x", true, "y"), "Control Type ()", "Criticality", "Control Value")
-	runAddControlDescriptions(t, control.NewString("x", true, ""), "Control Type ()", "Criticality")
-	runAddControlDescriptions(t, control.NewString("x", false, "y"), "Control Type ()", "Control Value")
-	runAddControlDescriptions(t, control.NewString("x", false, ""), "Control Type ()")
+	runAddDescriptions(t, NewString("x", true, "y"), "Control Type (x)", "Criticality", "Control Value")
+	runAddDescriptions(t, NewString("x", true, ""), "Control Type (x)", "Criticality")
+	runAddDescriptions(t, NewString("x", false, "y"), "Control Type (x)", "Control Value")
+	runAddDescriptions(t, NewString("x", false, ""), "Control Type (x)")
 }
 
-func runAddControlDescriptions(t *testing.T, originalControl control.Control, childDescriptions ...string) {
+func runAddDescriptions(t *testing.T, originalControl Control, childDescriptions ...string) {
 	header := ""
 	if callerpc, _, line, ok := runtime.Caller(1); ok {
 		if caller := runtime.FuncForPC(callerpc); caller != nil {
 			header = fmt.Sprintf("%s:%d: ", caller.Name(), line)
 		}
 	}
-	encodedControls := control.Encode(control.Control(originalControl))
-	AddControlDescriptions(encodedControls)
+	encodedControls := Encode(Control(originalControl))
+	AddDescriptions(encodedControls)
 	encodedPacket := encodedControls.Children[0]
 	if len(encodedPacket.Children) != len(childDescriptions) {
 		t.Errorf("%sinvalid number of children: %d != %d", header, len(encodedPacket.Children), len(childDescriptions))
@@ -136,52 +135,52 @@ func TestDecodeControl(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    control.Control
+		want    Control
 		wantErr bool
 	}{
 		{
 			name: "timeBeforeExpiration", args: args{packet: decodePacket([]byte{0xa0, 0x29, 0x30, 0x27, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0xa, 0x30, 0x8, 0xa0, 0x6, 0x80, 0x4, 0x7f, 0xff, 0xf6, 0x5c})},
-			want: &control.BeheraPasswordPolicy{Expire: 2147481180, Grace: -1, Error: -1, ErrorString: ""}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: 2147481180, Grace: -1, Error: -1, ErrorString: ""}, wantErr: false,
 		},
 		{
 			name: "graceAuthNsRemaining", args: args{packet: decodePacket([]byte{0xa0, 0x26, 0x30, 0x24, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x7, 0x30, 0x5, 0xa0, 0x3, 0x81, 0x1, 0x11})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: 17, Error: -1, ErrorString: ""}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: 17, Error: -1, ErrorString: ""}, wantErr: false,
 		},
 		{
 			name: "passwordExpired", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x0})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 0, ErrorString: "Password expired"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 0, ErrorString: "Password expired"}, wantErr: false,
 		},
 		{
 			name: "accountLocked", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x1})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 1, ErrorString: "Account locked"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 1, ErrorString: "Account locked"}, wantErr: false,
 		},
 		{
 			name: "passwordModNotAllowed", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x3})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 3, ErrorString: "Policy prevents password modification"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 3, ErrorString: "Policy prevents password modification"}, wantErr: false,
 		},
 		{
 			name: "mustSupplyOldPassword", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x4})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 4, ErrorString: "Policy requires old password in order to change password"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 4, ErrorString: "Policy requires old password in order to change password"}, wantErr: false,
 		},
 		{
 			name: "insufficientPasswordQuality", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x5})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 5, ErrorString: "Password fails quality checks"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 5, ErrorString: "Password fails quality checks"}, wantErr: false,
 		},
 		{
 			name: "passwordTooShort", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x6})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 6, ErrorString: "Password is too short for policy"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 6, ErrorString: "Password is too short for policy"}, wantErr: false,
 		},
 		{
 			name: "passwordTooYoung", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x7})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 7, ErrorString: "Password has been changed too recently"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 7, ErrorString: "Password has been changed too recently"}, wantErr: false,
 		},
 		{
 			name: "passwordInHistory", args: args{packet: decodePacket([]byte{0xa0, 0x24, 0x30, 0x22, 0x4, 0x19, 0x31, 0x2e, 0x33, 0x2e, 0x36, 0x2e, 0x31, 0x2e, 0x34, 0x2e, 0x31, 0x2e, 0x34, 0x32, 0x2e, 0x32, 0x2e, 0x32, 0x37, 0x2e, 0x38, 0x2e, 0x35, 0x2e, 0x31, 0x4, 0x5, 0x30, 0x3, 0x81, 0x1, 0x8})},
-			want: &control.BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 8, ErrorString: "New password is in list of old passwords"}, wantErr: false,
+			want: &BeheraPasswordPolicy{Expire: -1, Grace: -1, Error: 8, ErrorString: "New password is in list of old passwords"}, wantErr: false,
 		},
 	}
 	for i := range tests {
-		err := AddControlDescriptions(tests[i].args.packet)
+		err := AddDescriptions(tests[i].args.packet)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -189,7 +188,7 @@ func TestDecodeControl(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := control.Decode(test.args.packet)
+			got, err := Decode(test.args.packet)
 			if (err != nil) != test.wantErr {
 				t.Errorf("DecodeControl() error = %v, wantErr %v", err, test.wantErr)
 				return
@@ -201,15 +200,7 @@ func TestDecodeControl(t *testing.T) {
 	}
 }
 
-func decodePacket(buf []byte) *ber.Packet {
-	p, err := ber.ParseBytes(buf)
-	if err != nil {
-		panic(err)
-	}
-	return p
-}
-
-func TestAddControlDescriptions(t *testing.T) {
+func TestAddDescriptions(t *testing.T) {
 	type args struct {
 		packet *ber.Packet
 	}
@@ -231,9 +222,17 @@ func TestAddControlDescriptions(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := AddControlDescriptions(test.args.packet); (err != nil) != test.wantErr {
+			if err := AddDescriptions(test.args.packet); (err != nil) != test.wantErr {
 				t.Errorf("addControlDescriptions() error = %v, wantErr %v", err, test.wantErr)
 			}
 		})
 	}
+}
+
+func decodePacket(buf []byte) *ber.Packet {
+	p, err := ber.ParseBytes(buf)
+	if err != nil {
+		panic(err)
+	}
+	return p
 }

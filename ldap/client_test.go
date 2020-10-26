@@ -1,4 +1,4 @@
-package ldapclient
+package ldap
 
 import (
 	"bytes"
@@ -17,9 +17,10 @@ import (
 
 	"github.com/userhive/asn1/ber"
 	"github.com/userhive/asn1/ldap/control"
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
-func TestUnresponsiveConnection(t *testing.T) {
+func TestClientUnresponsiveConnection(t *testing.T) {
 	t.Parallel()
 	// The do-nothing server that accepts requests and does nothing
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +38,7 @@ func TestUnresponsiveConnection(t *testing.T) {
 	// Mock a packet
 	p := ber.NewPacket(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, cl.nextMessageID(), "MessageID"))
-	bindRequest := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindRequest.Tag(), nil, "Bind Request")
+	bindRequest := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindRequest.Tag(), nil, "Bind Request")
 	bindRequest.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "Version"))
 	p.AppendChild(bindRequest)
 	// Send packet and test response
@@ -61,7 +62,7 @@ func TestUnresponsiveConnection(t *testing.T) {
 
 // TestFinishMessage tests that we do not enter deadlock when a goroutine makes
 // a request but does not handle all responses from the server.
-func TestFinishMessage(t *testing.T) {
+func TestClientFinishMessage(t *testing.T) {
 	t.Parallel()
 	ptc := newPacketTranslatorConn()
 	defer ptc.Close()
@@ -305,12 +306,12 @@ func (c *packetTranslatorConn) SetWriteDeadline(t time.Time) error {
 }
 
 // TestNilPacket tests that nil packets don't cause a panic.
-func TestNilPacket(t *testing.T) {
+func TestClientNilPacket(t *testing.T) {
 	t.Parallel()
 	// Test for nil packet
-	err := GetLDAPError(nil)
-	if !IsErrorWithCode(err, ErrorUnexpectedResponse) {
-		t.Errorf("Should have an 'ErrorUnexpectedResponse' error in nil packets, got: %v", err)
+	err := ldaputil.GetLDAPError(nil)
+	if !ldaputil.IsErrorWithCode(err, ldaputil.ResultUnexpectedResponseError) {
+		t.Errorf("Should have an 'ldaputil.ResultUnexpectedResponseError' error in nil packets, got: %v", err)
 	}
 	// Test for nil result
 	kids := []*ber.Packet{
@@ -318,15 +319,15 @@ func TestNilPacket(t *testing.T) {
 		nil, // Can't be nil
 	}
 	pack := &ber.Packet{Children: kids}
-	err = GetLDAPError(pack)
-	if !IsErrorWithCode(err, ErrorUnexpectedResponse) {
-		t.Errorf("Should have an 'ErrorUnexpectedResponse' error in nil packets, got: %v", err)
+	err = ldaputil.GetLDAPError(pack)
+	if !ldaputil.IsErrorWithCode(err, ldaputil.ResultUnexpectedResponseError) {
+		t.Errorf("Should have an 'ldaputil.ResultUnexpectedResponseError' error in nil packets, got: %v", err)
 	}
 }
 
 // TestConnReadErr tests that an unexpected error reading from underlying
 // connection bubbles up to the goroutine which makes a request.
-func TestConnReadErr(t *testing.T) {
+func TestClientConnReadErr(t *testing.T) {
 	t.Parallel()
 	conn := &signalErrConn{
 		signals: make(chan error),
@@ -334,7 +335,7 @@ func TestConnReadErr(t *testing.T) {
 	cl := NewClient(conn, false)
 	cl.Start()
 	// Make a dummy search request.
-	searchReq := NewSearchRequest("dc=example,dc=com", ScopeWholeSubtree, DerefAlways, 0, 0, false, "(objectClass=*)", nil)
+	searchReq := NewClientSearchRequest("dc=example,dc=com", ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false, "(objectClass=*)", nil)
 	expectedError := errors.New("this is the error you are looking for")
 	// Send the signal after a short amount of time.
 	time.AfterFunc(10*time.Millisecond, func() { conn.signals <- expectedError })
@@ -348,23 +349,23 @@ func TestConnReadErr(t *testing.T) {
 }
 
 // TestGetLDAPError tests parsing of result with a error response.
-func TestGetLDAPError(t *testing.T) {
+func TestClientGetLDAPError(t *testing.T) {
 	t.Parallel()
 	diagnosticMessage := "Detailed error message"
-	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse.Tag(), nil, "Bind Response")
-	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(ResultInvalidCredentials), "resultCode"))
+	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindResponse.Tag(), nil, "Bind Response")
+	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(ldaputil.ResultInvalidCredentials), "resultCode"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "dc=example,dc=org", "matchedDN"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, diagnosticMessage, "diagnosticMessage"))
 	p := ber.NewSequence("LDAPMessage")
 	p.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
 	p.AppendChild(bindResponse)
-	err := GetLDAPError(p)
+	err := ldaputil.GetLDAPError(p)
 	if err == nil {
 		t.Errorf("Did not get error response")
 	}
-	ldapError := err.(*Error)
-	if ldapError.ResultCode != ResultInvalidCredentials {
-		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.ResultCode, ResultInvalidCredentials)
+	ldapError := err.(*ldaputil.Error)
+	if ldapError.ResultCode != ldaputil.ResultInvalidCredentials {
+		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.ResultCode, ldaputil.ResultInvalidCredentials)
 	}
 	if ldapError.Err.Error() != diagnosticMessage {
 		t.Errorf("Got incorrect error message in LDAP error; got %v, expected %v", ldapError.Err.Error(), diagnosticMessage)
@@ -372,16 +373,16 @@ func TestGetLDAPError(t *testing.T) {
 }
 
 // TestGetLDAPErrorSuccess tests parsing of a result with no error (resultCode == 0).
-func TestGetLDAPErrorSuccess(t *testing.T) {
+func TestClientGetLDAPErrorSuccess(t *testing.T) {
 	t.Parallel()
-	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse.Tag(), nil, "Bind Response")
+	bindResponse := ber.NewPacket(ber.ClassApplication, ber.TypeConstructed, ldaputil.ApplicationBindResponse.Tag(), nil, "Bind Response")
 	bindResponse.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "resultCode"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "matchedDN"))
 	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "", "diagnosticMessage"))
 	p := ber.NewSequence("LDAPMessage")
 	p.AppendChild(ber.NewPacket(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, int64(0), "messageID"))
 	p.AppendChild(bindResponse)
-	err := GetLDAPError(p)
+	err := ldaputil.GetLDAPError(p)
 	if err != nil {
 		t.Errorf("Successful responses should not produce an error, but got: %v", err)
 	}
@@ -448,7 +449,7 @@ var attributes = []string{
 	"description",
 }
 
-func TestUnsecureDialURL(t *testing.T) {
+func TestClientUnsecureDialURL(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
@@ -457,7 +458,7 @@ func TestUnsecureDialURL(t *testing.T) {
 	defer l.Close()
 }
 
-func TestSecureDialURL(t *testing.T) {
+func TestClientSecureDialURL(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
 	if err != nil {
@@ -466,7 +467,7 @@ func TestSecureDialURL(t *testing.T) {
 	defer l.Close()
 }
 
-func TestStartTLS(t *testing.T) {
+func TestClientStartTLS(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
@@ -479,7 +480,7 @@ func TestStartTLS(t *testing.T) {
 	}
 }
 
-func TestTLSConnectionState(t *testing.T) {
+func TestClientTLSConnectionState(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
@@ -499,16 +500,16 @@ func TestTLSConnectionState(t *testing.T) {
 	}
 }
 
-func TestSearch(t *testing.T) {
+func TestClientSearch(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		baseDN,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[0],
 		attributes,
 	)
@@ -519,16 +520,16 @@ func TestSearch(t *testing.T) {
 	t.Logf("TestSearch: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
 }
 
-func TestSearchStartTLS(t *testing.T) {
+func TestClientSearchStartTLS(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		baseDN,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[0],
 		attributes,
 	)
@@ -549,7 +550,7 @@ func TestSearchStartTLS(t *testing.T) {
 	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
 }
 
-func TestSearchWithPaging(t *testing.T) {
+func TestClientSearchWithPaging(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
@@ -560,9 +561,9 @@ func TestSearchWithPaging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		baseDN,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[2],
 		attributes,
 	)
@@ -571,9 +572,9 @@ func TestSearchWithPaging(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-	searchRequest = NewSearchRequest(
+	searchRequest = NewClientSearchRequest(
 		baseDN,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[2],
 		attributes,
 		control.NewPaging(5),
@@ -583,9 +584,9 @@ func TestSearchWithPaging(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-	searchRequest = NewSearchRequest(
+	searchRequest = NewClientSearchRequest(
 		baseDN,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[2],
 		attributes,
 		control.NewPaging(500),
@@ -597,9 +598,9 @@ func TestSearchWithPaging(t *testing.T) {
 }
 
 func searchGoroutine(t *testing.T, cl *Client, results chan *SearchResult, i int) {
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		baseDN,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[i],
 		attributes,
 	)
@@ -650,14 +651,14 @@ func testMultiGoroutineSearch(t *testing.T, TLS bool, startTLS bool) {
 	}
 }
 
-func TestMultiGoroutineSearch(t *testing.T) {
+func TestClientMultiGoroutineSearch(t *testing.T) {
 	t.Parallel()
 	testMultiGoroutineSearch(t, false, false)
 	testMultiGoroutineSearch(t, true, true)
 	testMultiGoroutineSearch(t, false, true)
 }
 
-func TestCompare(t *testing.T) {
+func TestClientCompare(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
@@ -674,7 +675,7 @@ func TestCompare(t *testing.T) {
 	t.Log("Compare result:", sr)
 }
 
-func TestMatchDNError(t *testing.T) {
+func TestClientMatchDNError(t *testing.T) {
 	t.Parallel()
 	l, err := DialURL(ldapServer)
 	if err != nil {
@@ -682,9 +683,9 @@ func TestMatchDNError(t *testing.T) {
 	}
 	defer l.Close()
 	const wrongBase = "ou=roups,dc=umich,dc=edu"
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		wrongBase,
-		ScopeWholeSubtree, DerefAlways, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
 		testFilters()[0],
 		attributes,
 	)
@@ -696,7 +697,7 @@ func TestMatchDNError(t *testing.T) {
 }
 
 // TestNewEntry tests that repeated calls to NewEntry return the same value with the same input
-func TestNewEntry(t *testing.T) {
+func TestClientNewEntry(t *testing.T) {
 	t.Parallel()
 	dn := "testDN"
 	attributes := map[string][]string{
@@ -720,7 +721,7 @@ func TestNewEntry(t *testing.T) {
 	}
 }
 
-func TestGetAttributeValue(t *testing.T) {
+func TestClientGetAttributeValue(t *testing.T) {
 	t.Parallel()
 	dn := "testDN"
 	attributes := map[string][]string{

@@ -3,6 +3,8 @@ package ldap
 import (
 	"context"
 	"errors"
+
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 type DeleteHandler interface {
@@ -25,5 +27,5 @@ type DeleteResponse struct{}
 
 // Encode satisfies the Encoder interface.
 func (res *DeleteResponse) Encode(_ context.Context, w ResponseWriter) error {
-	return w.WriteError(ApplicationDeleteResponse, errors.New("not implemented"))
+	return w.WriteError(ldaputil.ApplicationDeleteResponse, errors.New("not implemented"))
 }

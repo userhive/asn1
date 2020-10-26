@@ -1,4 +1,4 @@
-package ldapclient
+package ldap
 
 import (
 	"crypto/tls"
@@ -31,12 +31,11 @@ func ExampleConn_Search() {
 		log.Fatal(err)
 	}
 	defer l.Close()
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		"dc=example,dc=com", // The base dn to search
-		ScopeWholeSubtree, NeverDerefAliases, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesNever, 0, 0, false,
 		"(&(objectClass=organizationalPerson))", // The filter to apply
 		[]string{"dn", "cn"},                    // A list attributes to retrieve
-		nil,
 	)
 	sr, err := l.Search(searchRequest)
 	if err != nil {
@@ -168,12 +167,11 @@ func Example_userAuthentication() {
 		log.Fatal(err)
 	}
 	// Search for the given username
-	searchRequest := NewSearchRequest(
+	searchRequest := NewClientSearchRequest(
 		"dc=example,dc=com",
-		ScopeWholeSubtree, NeverDerefAliases, 0, 0, false,
+		ScopeWholeSubtree, DerefAliasesNever, 0, 0, false,
 		fmt.Sprintf("(&(objectClass=organizationalPerson)(uid=%s))", username),
 		[]string{"dn"},
-		nil,
 	)
 	sr, err := l.Search(searchRequest)
 	if err != nil {
@@ -207,7 +205,7 @@ func Example_beherappolicy() {
 	controls = append(controls)
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", controls...)
 	r, err := l.SimpleBind(bindRequest)
-	ppolicyControl := control.Find(r.Controls, control.OIDBeheraPasswordPolicy)
+	ppolicyControl := control.Find(r.Controls, control.ControlBeheraPasswordPolicy.String())
 	var ppolicy *control.BeheraPasswordPolicy
 	if ppolicyControl != nil {
 		ppolicy = ppolicyControl.(*control.BeheraPasswordPolicy)
@@ -242,7 +240,7 @@ func Example_vchuppolicy() {
 	l.Debug = true
 	bindRequest := NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", nil)
 	r, err := l.SimpleBind(bindRequest)
-	passwordMustChangeControl := control.Find(r.Controls, control.OIDVChuPasswordMustChange)
+	passwordMustChangeControl := control.Find(r.Controls, control.ControlVChuPasswordMustChange.String())
 	var passwordMustChange *control.VChuPasswordMustChange
 	if passwordMustChangeControl != nil {
 		passwordMustChange = passwordMustChangeControl.(*control.VChuPasswordMustChange)
@@ -250,7 +248,7 @@ func Example_vchuppolicy() {
 	if passwordMustChange != nil && passwordMustChange.MustChange {
 		log.Printf("Password Must be changed.\n")
 	}
-	passwordWarningControl := control.Find(r.Controls, control.OIDVChuPasswordWarning)
+	passwordWarningControl := control.Find(r.Controls, control.ControlVChuPasswordWarning.String())
 	var passwordWarning *control.VChuPasswordWarning
 	if passwordWarningControl != nil {
 		passwordWarning = passwordWarningControl.(*control.VChuPasswordWarning)
@@ -285,7 +283,7 @@ func ExamplePaging_manualPaging() {
 	attributes := []string{}
 	controls := []control.Control{pagingControl}
 	for {
-		request := NewSearchRequest(searchBase, ScopeWholeSubtree, DerefAlways, 0, 0, false, filter, attributes, controls...)
+		request := NewClientSearchRequest(searchBase, ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false, filter, attributes, controls...)
 		response, err := conn.Search(request)
 		if err != nil {
 			log.Fatalf("Failed to execute search request: %s", err.Error())
@@ -294,7 +292,7 @@ func ExamplePaging_manualPaging() {
 		// In order to prepare the next request, we check if the response
 		// contains another Paging object and a not-empty cookie and
 		// copy that cookie into our pagingControl object:
-		updatedControl := control.Find(response.Controls, control.OIDPaging)
+		updatedControl := control.Find(response.Controls, control.ControlPaging.String())
 		if ctrl, ok := updatedControl.(*control.Paging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
 			pagingControl.SetCookie(ctrl.Cookie)
 			continue
@@ -354,7 +352,7 @@ func ExampleConn_ModifyDN_renameNoMove() {
 		log.Fatalf("Failed to connect: %s\n", err)
 	}
 	defer conn.Close()
-	_, err = conn.SimpleBind(&SimpleBindRequest{
+	_, err = conn.SimpleBind(&ClientSimpleBindRequest{
 		Username: "uid=someone,ou=people,dc=example,dc=org",
 		Password: "MySecretPass",
 	})
@@ -375,7 +373,7 @@ func ExampleConn_ModifyDN_renameAndMove() {
 		log.Fatalf("Failed to connect: %s\n", err)
 	}
 	defer conn.Close()
-	_, err = conn.SimpleBind(&SimpleBindRequest{
+	_, err = conn.SimpleBind(&ClientSimpleBindRequest{
 		Username: "uid=someone,ou=people,dc=example,dc=org",
 		Password: "MySecretPass",
 	})
@@ -397,7 +395,7 @@ func ExampleConn_ModifyDN_moveOnly() {
 		log.Fatalf("Failed to connect: %s\n", err)
 	}
 	defer conn.Close()
-	_, err = conn.SimpleBind(&SimpleBindRequest{
+	_, err = conn.SimpleBind(&ClientSimpleBindRequest{
 		Username: "uid=someone,ou=people,dc=example,dc=org",
 		Password: "MySecretPass",
 	})

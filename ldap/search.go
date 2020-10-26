@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/userhive/asn1/ber"
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 type SearchHandler interface {
@@ -33,7 +34,7 @@ type SearchRequest struct {
 
 func ParseSearchRequest(req *Request) (*SearchRequest, error) {
 	if len(req.Packet.Children) != 8 {
-		return nil, NewErrorf(ResultProtocolError, "invalid search request, children missing (8 != %d)", len(req.Packet.Children))
+		return nil, NewErrorf(ldaputil.ResultProtocolError, "invalid search request, children missing (8 != %d)", len(req.Packet.Children))
 	}
 	baseObject := readString(req.Packet.Children[0])
 	scope := Scope(readInt64(req.Packet.Children[1]))
@@ -84,7 +85,7 @@ func (v *SearchRef) Encode(w ResponseWriter) error {
 }
 
 type SearchResponse struct {
-	Result    Result
+	Result    ldaputil.Result
 	MatchedDN string
 	Entries   SearchEntryResult
 	Refs      SearchRefResult
@@ -103,37 +104,37 @@ func (res *SearchResponse) Encode(ctx context.Context, w ResponseWriter) error {
 		for res.Entries.Next() {
 			entry := new(SearchEntry)
 			if err = res.Entries.Scan(entry); err != nil {
-				return w.WriteError(ApplicationSearchResultDone, NewError(ResultOtherError, "server error encountered while scanning search result"))
+				return w.WriteError(ldaputil.ApplicationSearchResultDone, NewError(ldaputil.ResultOtherError, "server error encountered while scanning search result"))
 			}
 			if err = entry.Encode(w); err != nil {
-				return w.WriteError(ApplicationSearchResultDone, NewError(ResultOtherError, "error encountered while encoding search result"))
+				return w.WriteError(ldaputil.ApplicationSearchResultDone, NewError(ldaputil.ResultOtherError, "error encountered while encoding search result"))
 			}
 		}
 		if err = res.Entries.Err(); err != nil {
 			Logf(ctx, "encountered error while processing search results: %v", err)
-			return w.WriteError(ApplicationSearchResultDone, NewError(ResultOtherError, "server error encountered processing search results"))
+			return w.WriteError(ldaputil.ApplicationSearchResultDone, NewError(ldaputil.ResultOtherError, "server error encountered processing search results"))
 		}
 	}
 	if res.Refs != nil {
 		for res.Refs.Next() {
 			referral := new(SearchRef)
 			if err = res.Entries.Scan(referral); err != nil {
-				return w.WriteError(ApplicationSearchResultDone, NewError(ResultOtherError, "server error encountered while scanning search referral"))
+				return w.WriteError(ldaputil.ApplicationSearchResultDone, NewError(ldaputil.ResultOtherError, "server error encountered while scanning search referral"))
 			}
 			if err = referral.Encode(w); err != nil {
-				return w.WriteError(ApplicationSearchResultDone, NewError(ResultOtherError, "error encountered while encoding search referral"))
+				return w.WriteError(ldaputil.ApplicationSearchResultDone, NewError(ldaputil.ResultOtherError, "error encountered while encoding search referral"))
 			}
 		}
 		if err = res.Refs.Err(); err != nil {
 			Logf(ctx, "encountered error while processing search referrals: %v", err)
-			return w.WriteError(ApplicationSearchResultDone, NewError(ResultOtherError, "server error encountered processing search referrals"))
+			return w.WriteError(ldaputil.ApplicationSearchResultDone, NewError(ldaputil.ResultOtherError, "server error encountered processing search referrals"))
 		}
 	}
 	return res.WriteDone(w)
 }
 
 func (res *SearchResponse) WriteDone(w ResponseWriter) error {
-	return w.WriteResult(ApplicationSearchResultDone, res.Result, res.MatchedDN, res.Result.String())
+	return w.WriteResult(ldaputil.ApplicationSearchResultDone, res.Result, res.MatchedDN, res.Result.String())
 }
 
 type QueryHandler interface {

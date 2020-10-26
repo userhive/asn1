@@ -2,6 +2,8 @@ package ldap
 
 import (
 	"context"
+
+	"github.com/userhive/asn1/ldap/ldaputil"
 )
 
 type BindHandler interface {
@@ -21,10 +23,10 @@ type BindRequest struct {
 
 func ParseBindRequest(req *Request) (*BindRequest, error) {
 	if len(req.Packet.Children) != 3 {
-		return nil, NewErrorf(ResultProtocolError, "invalid bind request, children missing (3 != %d)", len(req.Packet.Children))
+		return nil, NewErrorf(ldaputil.ResultProtocolError, "invalid bind request, children missing (3 != %d)", len(req.Packet.Children))
 	}
 	if ver := readInt64(req.Packet.Children[0]); ver != 3 {
-		return nil, NewErrorf(ResultProtocolError, "invalid protocol version (3 != %d)", ver)
+		return nil, NewErrorf(ldaputil.ResultProtocolError, "invalid protocol version (3 != %d)", ver)
 	}
 	return &BindRequest{
 		Username: readString(req.Packet.Children[1]),
@@ -33,11 +35,11 @@ func ParseBindRequest(req *Request) (*BindRequest, error) {
 }
 
 type BindResponse struct {
-	Result    Result
+	Result    ldaputil.Result
 	MatchedDN string
 }
 
 // Encode satisfies the Encoder interface.
 func (res *BindResponse) Encode(ctx context.Context, w ResponseWriter) error {
-	return w.WriteResult(ApplicationBindResponse, res.Result, res.MatchedDN, res.Result.String())
+	return w.WriteResult(ldaputil.ApplicationBindResponse, res.Result, res.MatchedDN, res.Result.String())
 }
