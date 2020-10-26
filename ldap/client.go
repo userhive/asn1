@@ -278,26 +278,34 @@ func (cl *Client) StartTLS(config *tls.Config) error {
 	if cl.isTLS {
 		return NewError(ldaputil.ResultClientError, "already encrypted")
 	}
-	p := ber.NewPacket(ber.ClassUniversal,
+	p := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		cl.nextMessageID(),
-	))
-	req := ber.NewPacket(ber.ClassApplication,
+	p.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			cl.nextMessageID(),
+		),
+	)
+	req := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationExtendedRequest.Tag(),
 		nil,
 	)
-	req.AppendChild(ber.NewString(ber.ClassContext,
-		ber.TypePrimitive,
-		0,
-		"1.3.6.1.4.1.1466.20037",
-	))
+	req.AppendChild(
+		ber.NewString(
+			ber.ClassContext,
+			ber.TypePrimitive,
+			0,
+			"1.3.6.1.4.1.1466.20037",
+		),
+	)
 	p.AppendChild(req)
 	msgCtx, err := cl.SendMessageWithFlags(p, startTLS)
 	if err != nil {
@@ -537,7 +545,8 @@ func (cl *Client) Do(req ClientRequest) (*MessageContext, error) {
 		nil,
 	)
 	p.AppendChild(
-		ber.NewInteger(ber.ClassUniversal,
+		ber.NewInteger(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagInteger,
 			cl.nextMessageID(),
@@ -687,42 +696,57 @@ func (cl *Client) DigestMD5Bind(req *ClientDigestMD5BindRequest) (*DigestMD5Bind
 			nil,
 		)
 		p.AppendChild(
-			ber.NewInteger(ber.ClassUniversal,
+			ber.NewInteger(
+				ber.ClassUniversal,
 				ber.TypePrimitive,
 				ber.TagInteger,
 				cl.nextMessageID(),
 			),
 		)
-		req := ber.NewPacket(ber.ClassApplication,
+		req := ber.NewPacket(
+			ber.ClassApplication,
 			ber.TypeConstructed,
 			ldaputil.ApplicationBindRequest.Tag(),
 			nil,
 		)
-		req.AppendChild(ber.NewInteger(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagInteger,
-			3,
-		))
-		req.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			"",
-		))
-		auth := ber.NewPacket(ber.ClassContext,
+		req.AppendChild(
+			ber.NewInteger(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagInteger,
+				3,
+			),
+		)
+		req.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				"",
+			),
+		)
+		auth := ber.NewPacket(
+			ber.ClassContext,
 			ber.TypeConstructed,
 			3,
 			"",
 		)
-		auth.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			"DIGEST-MD5",
-		))
-		auth.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			resp,
-		))
+		auth.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				"DIGEST-MD5",
+			),
+		)
+		auth.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				resp,
+			),
+		)
 		req.AppendChild(auth)
 		p.AppendChild(req)
 		msgCtx, err = cl.SendMessage(p)
@@ -912,36 +936,50 @@ func (cl *Client) PasswordModify(req *ClientPasswordModifyRequest) (*PasswordMod
 // See https://tools.ietf.org/html/rfc4422#appendix-A
 func (cl *Client) ExternalBind() error {
 	req := ClientRequestFunc(func(envelope *ber.Packet) error {
-		p := ber.NewPacket(ber.ClassApplication,
+		p := ber.NewPacket(
+			ber.ClassApplication,
 			ber.TypeConstructed,
 			ldaputil.ApplicationBindRequest.Tag(),
 			nil,
 		)
-		p.AppendChild(ber.NewInteger(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagInteger,
-			3,
-		))
-		p.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			"",
-		))
-		saslAuth := ber.NewPacket(ber.ClassContext,
+		p.AppendChild(
+			ber.NewInteger(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagInteger,
+				3,
+			),
+		)
+		p.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				"",
+			),
+		)
+		saslAuth := ber.NewPacket(
+			ber.ClassContext,
 			ber.TypeConstructed,
 			3,
 			"",
 		)
-		saslAuth.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			"EXTERNAL",
-		))
-		saslAuth.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			"",
-		))
+		saslAuth.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				"EXTERNAL",
+			),
+		)
+		saslAuth.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				"",
+			),
+		)
 		p.AppendChild(saslAuth)
 		envelope.AppendChild(p)
 		return nil
@@ -1020,33 +1058,45 @@ func (cl *Client) NTLMChallengeBind(req *ClientNTLMBindRequest) (*NTLMBindResult
 		if err != nil {
 			return result, fmt.Errorf("parsing ntlm-challenge: %s", err)
 		}
-		p = ber.NewPacket(ber.ClassUniversal,
+		p = ber.NewPacket(
+			ber.ClassUniversal,
 			ber.TypeConstructed,
 			ber.TagSequence,
 			nil,
 		)
-		p.AppendChild(ber.NewInteger(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagInteger,
-			cl.nextMessageID(),
-		))
-		request := ber.NewPacket(ber.ClassApplication,
+		p.AppendChild(
+			ber.NewInteger(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagInteger,
+				cl.nextMessageID(),
+			),
+		)
+		request := ber.NewPacket(
+			ber.ClassApplication,
 			ber.TypeConstructed,
 			ldaputil.ApplicationBindRequest.Tag(),
 			nil,
 		)
-		request.AppendChild(ber.NewInteger(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagInteger,
-			3,
-		))
-		request.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			"",
-		))
+		request.AppendChild(
+			ber.NewInteger(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagInteger,
+				3,
+			),
+		)
+		request.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				"",
+			),
+		)
 		// append the challenge response message as a TagEmbeddedPDV BER value
-		auth := ber.NewPacket(ber.ClassContext,
+		auth := ber.NewPacket(
+			ber.ClassContext,
 			ber.TypePrimitive,
 			ber.TagEmbeddedPDV,
 			responseMessage,
@@ -1213,7 +1263,8 @@ func (req *ClientCompareRequest) AppendTo(envelope *ber.Packet) error {
 		nil,
 	)
 	p.AppendChild(
-		ber.NewString(ber.ClassUniversal,
+		ber.NewString(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			req.DN,
@@ -1255,7 +1306,8 @@ type ClientDeleteRequest struct {
 }
 
 func (req *ClientDeleteRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypePrimitive,
 		ldaputil.ApplicationDeleteRequest.Tag(),
 		req.DN,
@@ -1306,41 +1358,57 @@ func NewModifyDNRequest(dn string, rdn string, delOld bool, newSup string) *Clie
 }
 
 func (req *ClientModifyDNRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationModifyDNRequest.Tag(),
 		nil,
 	)
-	p.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		req.DN,
-	))
-	p.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		req.NewRDN,
-	))
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			req.DN,
+		),
+	)
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			req.NewRDN,
+		),
+	)
 	if req.DeleteOldRDN {
 		buf := []byte{0xff}
-		p.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagBoolean,
-			string(buf),
-		))
+		p.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagBoolean,
+				string(buf),
+			),
+		)
 	} else {
-		p.AppendChild(ber.NewBoolean(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagBoolean,
-			req.DeleteOldRDN,
-		))
+		p.AppendChild(
+			ber.NewBoolean(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagBoolean,
+				req.DeleteOldRDN,
+			),
+		)
 	}
 	if req.NewSuperior != "" {
-		p.AppendChild(ber.NewString(ber.ClassContext,
-			ber.TypePrimitive,
-			0,
-			req.NewSuperior,
-		))
+		p.AppendChild(
+			ber.NewString(
+				ber.ClassContext,
+				ber.TypePrimitive,
+				0,
+				req.NewSuperior,
+			),
+		)
 	}
 	envelope.AppendChild(p)
 	return nil
@@ -1357,17 +1425,22 @@ type ClientAddRequest struct {
 }
 
 func (req *ClientAddRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationAddRequest.Tag(),
 		nil,
 	)
-	p.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		req.DN,
-	))
-	attributes := ber.NewPacket(ber.ClassUniversal,
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			req.DN,
+		),
+	)
+	attributes := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
@@ -1470,31 +1543,42 @@ type ClientDigestMD5BindRequest struct {
 }
 
 func (req *ClientDigestMD5BindRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationBindRequest.Tag(),
 		nil,
 	)
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		3,
-	))
-	p.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		"",
-	))
-	auth := ber.NewPacket(ber.ClassContext,
+	p.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			3,
+		),
+	)
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			"",
+		),
+	)
+	auth := ber.NewPacket(
+		ber.ClassContext,
 		ber.TypeConstructed,
 		3,
 		"",
 	)
-	auth.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		"DIGEST-MD5",
-	))
+	auth.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			"DIGEST-MD5",
+		),
+	)
 	p.AppendChild(auth)
 	envelope.AppendChild(p)
 	if len(req.Controls) > 0 {
@@ -1579,7 +1663,7 @@ func computeResponse(params map[string]string, uri, username, password string) s
 	kd += ":" + ha2
 	resp := hex.EncodeToString(md5Hash([]byte(kd)))
 	return fmt.Sprintf(
-		`username="%s",realm="%s",nonce="%s",cnonce="%s",nc=00000001,qop=%s,digest-uri="%s",response=%s`,
+		"username=%q,realm=%q,nonce=%q,cnonce=%q,nc=00000001,qop=%s,digest-uri=%q,response=%s",
 		username,
 		params["realm"],
 		params["nonce"],
@@ -1620,31 +1704,39 @@ type ClientNTLMBindRequest struct {
 }
 
 func (req *ClientNTLMBindRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationBindRequest.Tag(),
 		nil,
 	)
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		3,
-	))
-	p.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		"",
-	))
+	p.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			3,
+		),
+	)
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			"",
+		),
+	)
 	// generate an NTLMSSP Negotiation message for the  specified domain (it can be blank)
-	negMessage, err := ntlmssp.NewNegotiateMessage(req.Domain, "")
+	msg, err := ntlmssp.NewNegotiateMessage(req.Domain, "")
 	if err != nil {
 		return fmt.Errorf("err creating negmessage: %s", err)
 	}
 	// append the generated NTLMSSP message as a TagEnumerated BER value
-	auth := ber.NewPacket(ber.ClassContext,
+	auth := ber.NewPacket(
+		ber.ClassContext,
 		ber.TypePrimitive,
 		ber.TagEnumerated,
-		negMessage,
+		msg,
 	)
 	p.AppendChild(auth)
 	envelope.AppendChild(p)
@@ -1694,17 +1786,22 @@ func (req *ClientModifyRequest) appendChange(operation uint, attrType string, at
 }
 
 func (req *ClientModifyRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationModifyRequest.Tag(),
 		nil,
 	)
-	p.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		req.DN,
-	))
-	changes := ber.NewPacket(ber.ClassUniversal,
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			req.DN,
+		),
+	)
+	changes := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
@@ -1753,46 +1850,61 @@ type PasswordModifyResult struct {
 }
 
 func (req *ClientPasswordModifyRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationExtendedRequest.Tag(),
 		nil,
 	)
-	p.AppendChild(ber.NewString(ber.ClassContext,
-		ber.TypePrimitive,
-		0,
-		passwordModifyOID,
-	))
-	extendedRequestValue := ber.NewPacket(ber.ClassContext,
+	p.AppendChild(
+		ber.NewString(
+			ber.ClassContext,
+			ber.TypePrimitive,
+			0,
+			passwordModifyOID,
+		),
+	)
+	extendedRequestValue := ber.NewPacket(
+		ber.ClassContext,
 		ber.TypePrimitive,
 		1,
 		nil,
 	)
-	passwordModifyRequestValue := ber.NewPacket(ber.ClassUniversal,
+	passwordModifyRequestValue := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
 	if req.UserIdentity != "" {
-		passwordModifyRequestValue.AppendChild(ber.NewString(ber.ClassContext,
-			ber.TypePrimitive,
-			0,
-			req.UserIdentity,
-		))
+		passwordModifyRequestValue.AppendChild(
+			ber.NewString(
+				ber.ClassContext,
+				ber.TypePrimitive,
+				0,
+				req.UserIdentity,
+			),
+		)
 	}
 	if req.OldPassword != "" {
-		passwordModifyRequestValue.AppendChild(ber.NewString(ber.ClassContext,
-			ber.TypePrimitive,
-			1,
-			req.OldPassword,
-		))
+		passwordModifyRequestValue.AppendChild(
+			ber.NewString(
+				ber.ClassContext,
+				ber.TypePrimitive,
+				1,
+				req.OldPassword,
+			),
+		)
 	}
 	if req.NewPassword != "" {
-		passwordModifyRequestValue.AppendChild(ber.NewString(ber.ClassContext,
-			ber.TypePrimitive,
-			2,
-			req.NewPassword,
-		))
+		passwordModifyRequestValue.AppendChild(
+			ber.NewString(
+				ber.ClassContext,
+				ber.TypePrimitive,
+				2,
+				req.NewPassword,
+			),
+		)
 	}
 	extendedRequestValue.AppendChild(passwordModifyRequestValue)
 	p.AppendChild(extendedRequestValue)
@@ -2017,48 +2129,55 @@ type ClientSearchRequest struct {
 }
 
 func (req *ClientSearchRequest) AppendTo(envelope *ber.Packet) error {
-	p := ber.NewPacket(ber.ClassApplication,
+	p := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationSearchRequest.Tag(),
 		nil,
 	)
 	p.AppendChild(
-		ber.NewString(ber.ClassUniversal,
+		ber.NewString(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagOctetString,
 			req.BaseDN,
 		),
 	)
 	p.AppendChild(
-		ber.NewInteger(ber.ClassUniversal,
+		ber.NewInteger(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagEnumerated,
 			uint64(req.Scope),
 		),
 	)
 	p.AppendChild(
-		ber.NewInteger(ber.ClassUniversal,
+		ber.NewInteger(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagEnumerated,
 			uint64(req.DerefAliases),
 		),
 	)
 	p.AppendChild(
-		ber.NewInteger(ber.ClassUniversal,
+		ber.NewInteger(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagInteger,
 			uint64(req.SizeLimit),
 		),
 	)
 	p.AppendChild(
-		ber.NewInteger(ber.ClassUniversal,
+		ber.NewInteger(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagInteger,
 			uint64(req.TimeLimit),
 		),
 	)
 	p.AppendChild(
-		ber.NewBoolean(ber.ClassUniversal,
+		ber.NewBoolean(
+			ber.ClassUniversal,
 			ber.TypePrimitive,
 			ber.TagBoolean,
 			req.TypesOnly,
@@ -2071,17 +2190,21 @@ func (req *ClientSearchRequest) AppendTo(envelope *ber.Packet) error {
 	}
 	p.AppendChild(f)
 	// encode attributes
-	a := ber.NewPacket(ber.ClassUniversal,
+	a := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
 	for _, attribute := range req.Attributes {
-		a.AppendChild(ber.NewString(ber.ClassUniversal,
-			ber.TypePrimitive,
-			ber.TagOctetString,
-			attribute,
-		))
+		a.AppendChild(
+			ber.NewString(
+				ber.ClassUniversal,
+				ber.TypePrimitive,
+				ber.TagOctetString,
+				attribute,
+			),
+		)
 	}
 	p.AppendChild(a)
 	envelope.AppendChild(p)

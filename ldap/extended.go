@@ -147,26 +147,36 @@ func NewExtendedWhoAmIHandler(f ExtendedWhoAmIHandlerFunc) ExtendedHandlerFunc {
 
 // NewExtendedPasswordModifyRequest creates an extended password modify request.
 func NewExtendedPasswordModifyRequest(id, oldPass, newPass string) (*ExtendedRequest, error) {
-	value := ber.NewPacket(ber.ClassUniversal,
+	value := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
-	value.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		id,
-	))
-	value.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		oldPass,
-	))
-	value.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		newPass,
-	))
+	value.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			id,
+		),
+	)
+	value.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			oldPass,
+		),
+	)
+	value.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			newPass,
+		),
+	)
 	return &ExtendedRequest{
 		Name:  ExtendedOpPasswordModify,
 		Value: value,

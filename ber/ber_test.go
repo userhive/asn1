@@ -9,7 +9,12 @@ import (
 
 func TestNewBoolean(t *testing.T) {
 	t.Parallel()
-	p := NewBoolean(ClassUniversal, TypePrimitive, TagBoolean, true)
+	p := NewBoolean(
+		ClassUniversal,
+		TypePrimitive,
+		TagBoolean,
+		true,
+	)
 	b, ok := p.Value.(bool)
 	if !ok || b != true {
 		t.Error("error during creating packet")
@@ -26,7 +31,12 @@ func TestNewBoolean(t *testing.T) {
 
 func TestNewLDAPBoolean(t *testing.T) {
 	t.Parallel()
-	p := NewLDAPBoolean(ClassUniversal, TypePrimitive, TagBoolean, true)
+	p := NewLDAPBoolean(
+		ClassUniversal,
+		TypePrimitive,
+		TagBoolean,
+		true,
+	)
 	b, ok := p.Value.(bool)
 	if !ok || b != true {
 		t.Error("error during creating packet")
@@ -50,7 +60,14 @@ func TestNewSequence(t *testing.T) {
 	}
 	s := NewSequence()
 	for _, v := range tests {
-		s.AppendChild(NewString(ClassUniversal, TypePrimitive, TagOctetString, v))
+		s.AppendChild(
+			NewString(
+				ClassUniversal,
+				TypePrimitive,
+				TagOctetString,
+				v,
+			),
+		)
 	}
 	if len(s.Children) != len(tests) {
 		t.Errorf("expected len(children)==len(tests): %d!=%d", len(tests), len(s.Children))
@@ -71,7 +88,12 @@ func TestNewSequence(t *testing.T) {
 
 func TestNewString(t *testing.T) {
 	t.Parallel()
-	p := NewString(ClassUniversal, TypePrimitive, TagOctetString, "Ad impossibilia nemo tenetur")
+	p := NewString(
+		ClassUniversal,
+		TypePrimitive,
+		TagOctetString,
+		"Ad impossibilia nemo tenetur",
+	)
 	p2, err := ParseBytes(p.Bytes())
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +114,12 @@ func TestNewStringUTF8(t *testing.T) {
 		{"asdfg\xFF", "invalid UTF-8 string"},
 	}
 	for i, test := range tests {
-		p := NewString(ClassUniversal, TypePrimitive, TagUTF8String, test.v)
+		p := NewString(
+			ClassUniversal,
+			TypePrimitive,
+			TagUTF8String,
+			test.v,
+		)
 		s, err := ParseBytes(p.Bytes())
 		switch {
 		case err != nil && test.err == "":
@@ -117,7 +144,12 @@ func TestNewStringIA5(t *testing.T) {
 		{"asdfgå", "invalid IA5 string"},
 	}
 	for i, test := range tests {
-		p := NewString(ClassUniversal, TypePrimitive, TagIA5String, test.v)
+		p := NewString(
+			ClassUniversal,
+			TypePrimitive,
+			TagIA5String,
+			test.v,
+		)
 		s, err := ParseBytes(p.Bytes())
 		switch {
 		case err != nil && test.err == "":
@@ -142,7 +174,12 @@ func TestNewStringPrintable(t *testing.T) {
 		{"asdfgå", "invalid Printable string"},
 	}
 	for i, test := range tests {
-		p := NewString(ClassUniversal, TypePrimitive, TagPrintableString, test.v)
+		p := NewString(
+			ClassUniversal,
+			TypePrimitive,
+			TagPrintableString,
+			test.v,
+		)
 		s, err := ParseBytes(p.Bytes())
 		switch {
 		case err != nil && test.err == "":
@@ -161,7 +198,12 @@ func TestNewStringOctet(t *testing.T) {
 	t.Parallel()
 	// data src : http://luca.ntop.org/Teaching/Appunti/asn1.html 5.10
 	exp := []byte{0x04, 0x08, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}
-	v := NewString(ClassUniversal, TypePrimitive, TagOctetString, "\x01\x23\x45\x67\x89\xab\xcd\xef")
+	v := NewString(
+		ClassUniversal,
+		TypePrimitive,
+		TagOctetString,
+		"\x01\x23\x45\x67\x89\xab\xcd\xef",
+	)
 	if !bytes.Equal(v.Bytes(), exp) {
 		t.Error("expected strings to match")
 	}
@@ -184,8 +226,14 @@ func TestNewInteger(t *testing.T) {
 		{v: math.MinInt64, exp: []byte{0x02, 0x08, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 	}
 	for _, test := range tests {
-		if i := NewInteger(ClassUniversal, TypePrimitive, TagInteger, test.v).Bytes(); !bytes.Equal(test.exp, i) {
-			t.Errorf("Wrong binary generated for %d : got % X, expected % X", test.v, i, test.exp)
+		i := NewInteger(
+			ClassUniversal,
+			TypePrimitive,
+			TagInteger,
+			test.v,
+		)
+		if buf := i.Bytes(); !bytes.Equal(test.exp, buf) {
+			t.Errorf("Wrong binary generated for %d : got % X, expected % X", test.v, buf, test.exp)
 		}
 	}
 }
@@ -285,7 +333,12 @@ func TestParseBytes(t *testing.T) {
 func TestNewIntegerParse(t *testing.T) {
 	t.Parallel()
 	exp := int64(10)
-	p := NewInteger(ClassUniversal, TypePrimitive, TagInteger, exp)
+	p := NewInteger(
+		ClassUniversal,
+		TypePrimitive,
+		TagInteger,
+		exp,
+	)
 	i, ok := p.Value.(int64)
 	if !ok || i != exp {
 		t.Error("error creating packet")
@@ -303,7 +356,12 @@ func TestNewIntegerParse(t *testing.T) {
 func TestNewStringParse(t *testing.T) {
 	t.Parallel()
 	exp := "Hic sunt dracones"
-	p := NewString(ClassUniversal, TypePrimitive, TagOctetString, exp)
+	p := NewString(
+		ClassUniversal,
+		TypePrimitive,
+		TagOctetString,
+		exp,
+	)
 	v, ok := p.Value.(string)
 	if !ok || v != exp {
 		t.Errorf("expected %q, got: %q", exp, v)

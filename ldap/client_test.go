@@ -36,26 +36,34 @@ func TestClientUnresponsiveConnection(t *testing.T) {
 	cl.Start()
 	defer cl.Close()
 	// Mock a packet
-	p := ber.NewPacket(ber.ClassUniversal,
+	p := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
-	p.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		cl.nextMessageID(),
-	))
-	req := ber.NewPacket(ber.ClassApplication,
+	p.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			cl.nextMessageID(),
+		),
+	)
+	req := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationBindRequest.Tag(),
 		nil,
 	)
-	req.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		3,
-	))
+	req.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			3,
+		),
+	)
 	p.AppendChild(req)
 	// Send packet and test response
 	msgCtx, err := cl.SendMessage(p)
@@ -122,16 +130,20 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCt
 	runWithTimeout(t, time.Second, func() {
 		msgID = cl.nextMessageID()
 	})
-	req := ber.NewPacket(ber.ClassUniversal,
+	req := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
-	req.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		msgID,
-	))
+	req.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			msgID,
+		),
+	)
 	var err error
 	runWithTimeout(t, time.Second, func() {
 		msgCtx, err = cl.SendMessage(req)
@@ -151,16 +163,20 @@ func testSendRequest(t *testing.T, ptc *packetTranslatorConn, cl *Client) (msgCt
 
 func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *MessageContext) {
 	// Send a mock response packet.
-	res := ber.NewPacket(ber.ClassUniversal,
+	res := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
-	res.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		msgCtx.id,
-	))
+	res.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			msgCtx.id,
+		),
+	)
 	runWithTimeout(t, time.Second, func() {
 		if err := ptc.SendResponse(res); err != nil {
 			t.Fatalf("unable to send response packet: %s", err)
@@ -176,16 +192,20 @@ func testReceiveResponse(t *testing.T, ptc *packetTranslatorConn, msgCtx *Messag
 
 func testSendUnhandledResponsesAndFinish(t *testing.T, ptc *packetTranslatorConn, cl *Client, msgCtx *MessageContext, numResponses int) {
 	// Send a mock response packet.
-	res := ber.NewPacket(ber.ClassUniversal,
+	res := ber.NewPacket(
+		ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
 		nil,
 	)
-	res.AppendChild(ber.NewInteger(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		msgCtx.id,
-	))
+	res.AppendChild(
+		ber.NewInteger(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			msgCtx.id,
+		),
+	)
 	// Send extra responses but do not attempt to receive them on the
 	// client side.
 	for i := 0; i < numResponses; i++ {
@@ -392,32 +412,45 @@ func TestClientConnReadErr(t *testing.T) {
 func TestClientGetError(t *testing.T) {
 	exp := "Detailed error message"
 	t.Parallel()
-	res := ber.NewPacket(ber.ClassApplication,
+	res := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationBindResponse.Tag(),
 		nil,
 	)
-	res.AppendChild(ber.NewPacket(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		int64(ldaputil.ResultInvalidCredentials),
-	))
-	res.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		"dc=example,dc=org",
-	))
-	res.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		exp,
-	))
+	res.AppendChild(
+		ber.NewPacket(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			int64(ldaputil.ResultInvalidCredentials),
+		),
+	)
+	res.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			"dc=example,dc=org",
+		),
+	)
+	res.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			exp,
+		),
+	)
 	p := ber.NewSequence()
-	p.AppendChild(ber.NewPacket(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		int64(0),
-	))
+	p.AppendChild(
+		ber.NewPacket(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			int64(0),
+		),
+	)
 	p.AppendChild(res)
 	err := GetError(p)
 	if err == nil {
@@ -435,32 +468,45 @@ func TestClientGetError(t *testing.T) {
 // TestGetErrorSuccess tests parsing of a result with no error (resultCode == 0).
 func TestClientGetErrorSuccess(t *testing.T) {
 	t.Parallel()
-	res := ber.NewPacket(ber.ClassApplication,
+	res := ber.NewPacket(
+		ber.ClassApplication,
 		ber.TypeConstructed,
 		ldaputil.ApplicationBindResponse.Tag(),
 		nil,
 	)
-	res.AppendChild(ber.NewPacket(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		int64(0),
-	))
-	res.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		"",
-	))
-	res.AppendChild(ber.NewString(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagOctetString,
-		"",
-	))
+	res.AppendChild(
+		ber.NewPacket(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			int64(0),
+		),
+	)
+	res.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			"",
+		),
+	)
+	res.AppendChild(
+		ber.NewString(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagOctetString,
+			"",
+		),
+	)
 	p := ber.NewSequence()
-	p.AppendChild(ber.NewPacket(ber.ClassUniversal,
-		ber.TypePrimitive,
-		ber.TagInteger,
-		int64(0),
-	))
+	p.AppendChild(
+		ber.NewPacket(
+			ber.ClassUniversal,
+			ber.TypePrimitive,
+			ber.TagInteger,
+			int64(0),
+		),
+	)
 	p.AppendChild(res)
 	err := GetError(p)
 	if err != nil {

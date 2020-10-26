@@ -422,7 +422,8 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 			)
 		case p.Tag == EqualityMatch && bytes.Index(condition.Bytes(), any) > -1:
 			p.AppendChild(
-				ber.NewString(ber.ClassUniversal,
+				ber.NewString(
+					ber.ClassUniversal,
 					ber.TypePrimitive,
 					ber.TagOctetString,
 					attribute.String(),
