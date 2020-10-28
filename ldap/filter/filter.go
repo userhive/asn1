@@ -103,36 +103,36 @@ func Decompile(p *ber.Packet) (string, error) {
 		}
 		buf.WriteString(childStr)
 	case Substrings:
-		buf.WriteString(string(p.Children[0].Data.Bytes()))
+		buf.Write(p.Children[0].Data.Bytes())
 		buf.WriteByte('=')
 		for i, child := range p.Children[1].Children {
 			if i == 0 && child.Tag != SubstringsInitial {
 				buf.Write(any)
 			}
-			buf.WriteString(Escape(string(child.Data.Bytes())))
+			buf.WriteString(Escape(child.Data.String()))
 			if child.Tag != SubstringsFinal {
 				buf.Write(any)
 			}
 		}
 	case EqualityMatch:
-		buf.WriteString(string(p.Children[0].Data.Bytes()))
+		buf.Write(p.Children[0].Data.Bytes())
 		buf.WriteByte('=')
-		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(p.Children[1].Data.String()))
 	case GreaterOrEqual:
-		buf.WriteString(string(p.Children[0].Data.Bytes()))
+		buf.Write(p.Children[0].Data.Bytes())
 		buf.WriteString(">=")
-		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(p.Children[1].Data.String()))
 	case LessOrEqual:
-		buf.WriteString(string(p.Children[0].Data.Bytes()))
+		buf.Write(p.Children[0].Data.Bytes())
 		buf.WriteString("<=")
-		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(p.Children[1].Data.String()))
 	case Present:
-		buf.WriteString(string(p.Data.Bytes()))
+		buf.Write(p.Data.Bytes())
 		buf.WriteString("=*")
 	case ApproxMatch:
-		buf.WriteString(string(p.Children[0].Data.Bytes()))
+		buf.Write(p.Children[0].Data.Bytes())
 		buf.WriteString("~=")
-		buf.WriteString(Escape(string(p.Children[1].Data.Bytes())))
+		buf.WriteString(Escape(p.Children[1].Data.String()))
 	case ExtensibleMatch:
 		attr := ""
 		dnAttributes := false
@@ -141,11 +141,11 @@ func Decompile(p *ber.Packet) (string, error) {
 		for _, child := range p.Children {
 			switch child.Tag {
 			case RuleMatchingRule:
-				matchingRule = string(child.Data.Bytes())
+				matchingRule = child.Data.String()
 			case RuleType:
-				attr = string(child.Data.Bytes())
+				attr = child.Data.String()
 			case RuleMatchValue:
-				value = string(child.Data.Bytes())
+				value = child.Data.String()
 			case RuleDNAttributes:
 				dnAttributes = child.Value.(bool)
 			}
@@ -419,7 +419,7 @@ func compile(filter string, pos int) (*ber.Packet, int, error) {
 				Present,
 				attribute.String(),
 			)
-		case p.Tag == EqualityMatch && bytes.Index(condition.Bytes(), any) > -1:
+		case p.Tag == EqualityMatch && bytes.Contains(condition.Bytes(), any):
 			p.AppendChild(
 				ber.NewString(
 					ber.ClassUniversal,

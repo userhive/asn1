@@ -268,7 +268,7 @@ func TestExtendedPasswordModify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u := string(res.Value.Data.Bytes()); u != "u:username" {
+	if u := res.Value.Data.String(); u != "u:username" {
 		t.Fatalf("expected u:username, got: %s", u)
 	}
 

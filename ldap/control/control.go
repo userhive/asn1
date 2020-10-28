@@ -145,8 +145,7 @@ func Decode(p *ber.Packet) (Control, error) {
 		return c, nil
 	case ControlVChuPasswordWarning:
 		c := &VChuPasswordWarning{Expire: -1}
-		expireStr := string(value.Data.Bytes())
-		expire, err := strconv.ParseInt(expireStr, 10, 64)
+		expire, err := strconv.ParseInt(value.Data.String(), 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse value as int: %s", err)
 		}

@@ -921,7 +921,7 @@ func (cl *Client) PasswordModify(req *ClientPasswordModifyRequest) (*PasswordMod
 			}
 			if len(passwordModifyResponseValue.Children) == 1 {
 				if passwordModifyResponseValue.Children[0].Tag == 0 {
-					result.GeneratedPassword = string(passwordModifyResponseValue.Children[0].Data.Bytes())
+					result.GeneratedPassword = passwordModifyResponseValue.Children[0].Data.String()
 				}
 			}
 		}
@@ -1158,15 +1158,9 @@ func (cl *Client) SearchWithPaging(req *ClientSearchRequest, pagingSize uint32) 
 		if result == nil {
 			return searchResult, NewError(ldaputil.ResultClientError, "packet not received")
 		}
-		for _, entry := range result.Entries {
-			searchResult.Entries = append(searchResult.Entries, entry)
-		}
-		for _, referral := range result.Referrals {
-			searchResult.Referrals = append(searchResult.Referrals, referral)
-		}
-		for _, control := range result.Controls {
-			searchResult.Controls = append(searchResult.Controls, control)
-		}
+		searchResult.Entries = append(searchResult.Entries, result.Entries...)
+		searchResult.Referrals = append(searchResult.Referrals, result.Referrals...)
+		searchResult.Controls = append(searchResult.Controls, result.Controls...)
 		pagingResult := control.Find(result.Controls, control.ControlPaging.String())
 		if pagingResult == nil {
 			pagingControl = nil
