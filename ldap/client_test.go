@@ -75,12 +75,12 @@ func TestClientUnresponsiveConnection(t *testing.T) {
 	if !ok {
 		t.Fatalf("no PacketResponse in response channel")
 	}
-	p, err = res.ReadPacket()
-	if err == nil {
-		t.Fatalf("expected timeout error")
-	}
-	if err.Error() != "connection timed out" {
-		t.Fatalf("unexpected error: %v", err)
+	_, err = res.ReadPacket()
+	switch {
+	case err != nil && err.Error() != "connection timed out":
+		t.Errorf("expected connection timed out error, got: %v", err)
+	case err == nil:
+		t.Errorf("expected timeout error")
 	}
 }
 
@@ -395,15 +395,24 @@ func TestClientConnReadErr(t *testing.T) {
 	cl := NewClient(conn, false)
 	cl.Start()
 	// Make a dummy search request.
-	searchReq := NewClientSearchRequest("dc=example,dc=com", ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false, "(objectClass=*)", nil)
-	expectedError := errors.New("this is the error you are looking for")
+	req := NewClientSearchRequest(
+		"dc=example,dc=com",
+		ScopeWholeSubtree,
+		DerefAliasesAlways,
+		0,
+		0,
+		false,
+		"(objectClass=*)",
+		nil,
+	)
+	exp := errors.New("this is the error you are looking for")
 	// Send the signal after a short amount of time.
-	time.AfterFunc(10*time.Millisecond, func() { conn.signals <- expectedError })
+	time.AfterFunc(10*time.Millisecond, func() { conn.signals <- exp })
 	// This should block until the underlying conn gets the error signal
 	// which should bubble up through the reader() goroutine, close the
 	// connection, and
-	_, err := cl.Search(searchReq)
-	if err == nil || !strings.Contains(err.Error(), expectedError.Error()) {
+	_, err := cl.Search(req)
+	if err == nil || !strings.Contains(err.Error(), exp.Error()) {
 		t.Errorf("not the expected error: %s", err)
 	}
 }
@@ -456,12 +465,12 @@ func TestClientGetError(t *testing.T) {
 	if err == nil {
 		t.Errorf("Did not get error response")
 	}
-	ldapError := err.(*Error)
-	if ldapError.Result != ldaputil.ResultInvalidCredentials {
-		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", ldapError.Result, ldaputil.ResultInvalidCredentials)
+	e := err.(*Error)
+	if e.Result != ldaputil.ResultInvalidCredentials {
+		t.Errorf("Got incorrect error code in LDAP error; got %v, expected %v", e.Result, ldaputil.ResultInvalidCredentials)
 	}
-	if ldapError.Message != exp {
-		t.Errorf("Got incorrect error message in LDAP error; got %v, expected %v", ldapError.Message, exp)
+	if e.Message != exp {
+		t.Errorf("Got incorrect error message in LDAP error; got %v, expected %v", e.Message, exp)
 	}
 }
 
@@ -511,6 +520,298 @@ func TestClientGetErrorSuccess(t *testing.T) {
 	err := GetError(p)
 	if err != nil {
 		t.Errorf("Successful responses should not produce an error, but got: %v", err)
+	}
+}
+
+func TestClientUnsecureDialURL(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+}
+
+func TestClientSecureDialURL(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+}
+
+func TestClientStartTLS(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClientTLSConnectionState(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs, ok := l.TLSConnectionState()
+	if !ok {
+		t.Errorf("TLSConnectionState returned ok == false; want true")
+	}
+	if cs.Version == 0 || !cs.HandshakeComplete {
+		t.Errorf("ConnectionState = %#v; expected Version != 0 and HandshakeComplete = true", cs)
+	}
+}
+
+func TestClientSearch(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	req := NewClientSearchRequest(
+		baseDN,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[0],
+		attributes,
+	)
+	res, err := l.Search(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("TestSearch: %s -> num of entries = %d", req.Filter, len(res.Entries))
+}
+
+func TestClientSearchStartTLS(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	req := NewClientSearchRequest(
+		baseDN,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[0],
+		attributes,
+	)
+	res, err := l.Search(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", req.Filter, len(res.Entries))
+	t.Log("TestSearchStartTLS: upgrading with startTLS")
+	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = l.Search(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", req.Filter, len(res.Entries))
+}
+
+func TestClientSearchWithPaging(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	err = l.UnauthenticatedBind("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := NewClientSearchRequest(
+		baseDN,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[2],
+		attributes,
+	)
+	res, err := l.SearchWithPaging(req, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", req.Filter, len(res.Entries))
+	req = NewClientSearchRequest(
+		baseDN,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[2],
+		attributes,
+		control.NewPaging(5),
+	)
+	res, err = l.SearchWithPaging(req, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", req.Filter, len(res.Entries))
+	req = NewClientSearchRequest(
+		baseDN,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[2],
+		attributes,
+		control.NewPaging(500),
+	)
+	_, err = l.SearchWithPaging(req, 5)
+	switch {
+	case err == nil:
+		t.Error("expected an error when paging size in control in search request doesn't match size given in call, got none")
+	}
+}
+
+func TestClientMultiGoroutineSearch(t *testing.T) {
+	t.Parallel()
+	testMultiGoroutineSearch(t, false, false)
+	testMultiGoroutineSearch(t, true, true)
+	testMultiGoroutineSearch(t, false, true)
+}
+
+func TestClientCompare(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	const dn = "cn=math mich,ou=User Groups,ou=Groups,dc=umich,dc=edu"
+	const attribute = "cn"
+	const value = "math mich"
+	res, err := l.Compare(dn, attribute, value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Compare result:", res)
+}
+
+func TestClientMatchDNError(t *testing.T) {
+	t.Parallel()
+	l, err := DialURL(ldapServer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	const wrongBase = "ou=roups,dc=umich,dc=edu"
+	req := NewClientSearchRequest(
+		wrongBase,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[0],
+		attributes,
+	)
+	_, err = l.Search(req)
+	if err == nil {
+		t.Fatal("Expected Error, got nil")
+	}
+	t.Log("TestMatchDNError:", err)
+}
+
+// TestNewEntry tests that repeated calls to NewEntry return the same value with the same input
+func TestClientNewEntry(t *testing.T) {
+	t.Parallel()
+	dn := "testDN"
+	attributes := map[string][]string{
+		"alpha":   {"value"},
+		"beta":    {"value"},
+		"gamma":   {"value"},
+		"delta":   {"value"},
+		"epsilon": {"value"},
+	}
+	executedEntry := NewEntry(dn, attributes)
+	iteration := 0
+	for {
+		if iteration == 100 {
+			break
+		}
+		testEntry := NewEntry(dn, attributes)
+		if !reflect.DeepEqual(executedEntry, testEntry) {
+			t.Fatalf("subsequent calls to NewEntry did not yield the same result:\n\texpected:\n\t%v\n\tgot:\n\t%v\n", executedEntry, testEntry)
+		}
+		iteration = iteration + 1
+	}
+}
+
+func TestClientGetAttributeValue(t *testing.T) {
+	t.Parallel()
+	dn := "testDN"
+	attributes := map[string][]string{
+		"Alpha":   {"value"},
+		"bEta":    {"value"},
+		"gaMma":   {"value"},
+		"delTa":   {"value"},
+		"epsiLon": {"value"},
+	}
+	entry := NewEntry(dn, attributes)
+	if entry.GetAttributeValue("Alpha") != "value" {
+		t.Errorf("failed to get attribute in original case")
+	}
+	if entry.GetEqualFoldAttributeValue("alpha") != "value" {
+		t.Errorf("failed to get attribute in changed case")
+	}
+}
+
+func searchGoroutine(t *testing.T, cl *Client, results chan *SearchResult, i int) {
+	req := NewClientSearchRequest(
+		baseDN,
+		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
+		testFilters()[i],
+		attributes,
+	)
+	res, err := cl.Search(req)
+	if err != nil {
+		t.Error(err)
+		results <- nil
+		return
+	}
+	results <- res
+}
+
+func testMultiGoroutineSearch(t *testing.T, TLS bool, startTLS bool) {
+	var cl *Client
+	var err error
+	if TLS {
+		cl, err = DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cl.Close()
+	} else {
+		cl, err = DialURL(ldapServer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cl.Close()
+		if startTLS {
+			t.Log("TestMultiGoroutineSearch: using StartTLS...")
+			err := cl.StartTLS(&tls.Config{InsecureSkipVerify: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	results := make([]chan *SearchResult, len(testFilters()))
+	for i := range testFilters() {
+		results[i] = make(chan *SearchResult)
+		go searchGoroutine(t, cl, results[i], i)
+	}
+	for i := range testFilters() {
+		res := <-results[i]
+		if res == nil {
+			t.Errorf("Did not receive results from goroutine for %q", testFilters()[i])
+		} else {
+			t.Logf("TestMultiGoroutineSearch(%d): %s -> num of entries = %d", i, testFilters()[i], len(res.Entries))
+		}
 	}
 }
 
@@ -573,295 +874,4 @@ func testFilters() []string {
 var attributes = []string{
 	"cn",
 	"description",
-}
-
-func TestClientUnsecureDialURL(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-}
-
-func TestClientSecureDialURL(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-}
-
-func TestClientStartTLS(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestClientTLSConnectionState(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cs, ok := l.TLSConnectionState()
-	if !ok {
-		t.Errorf("TLSConnectionState returned ok == false; want true")
-	}
-	if cs.Version == 0 || !cs.HandshakeComplete {
-		t.Errorf("ConnectionState = %#v; expected Version != 0 and HandshakeComplete = true", cs)
-	}
-}
-
-func TestClientSearch(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	searchRequest := NewClientSearchRequest(
-		baseDN,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[0],
-		attributes,
-	)
-	sr, err := l.Search(searchRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("TestSearch: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-}
-
-func TestClientSearchStartTLS(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	searchRequest := NewClientSearchRequest(
-		baseDN,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[0],
-		attributes,
-	)
-	sr, err := l.Search(searchRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-	t.Log("TestSearchStartTLS: upgrading with startTLS")
-	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	sr, err = l.Search(searchRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("TestSearchStartTLS: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-}
-
-func TestClientSearchWithPaging(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	err = l.UnauthenticatedBind("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	searchRequest := NewClientSearchRequest(
-		baseDN,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[2],
-		attributes,
-	)
-	sr, err := l.SearchWithPaging(searchRequest, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-	searchRequest = NewClientSearchRequest(
-		baseDN,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[2],
-		attributes,
-		control.NewPaging(5),
-	)
-	sr, err = l.SearchWithPaging(searchRequest, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("TestSearchWithPaging: %s -> num of entries = %d", searchRequest.Filter, len(sr.Entries))
-	searchRequest = NewClientSearchRequest(
-		baseDN,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[2],
-		attributes,
-		control.NewPaging(500),
-	)
-	sr, err = l.SearchWithPaging(searchRequest, 5)
-	if err == nil {
-		t.Fatal("expected an error when paging size in control in search request doesn't match size given in call, got none")
-	}
-}
-
-func searchGoroutine(t *testing.T, cl *Client, results chan *SearchResult, i int) {
-	searchRequest := NewClientSearchRequest(
-		baseDN,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[i],
-		attributes,
-	)
-	sr, err := cl.Search(searchRequest)
-	if err != nil {
-		t.Error(err)
-		results <- nil
-		return
-	}
-	results <- sr
-}
-
-func testMultiGoroutineSearch(t *testing.T, TLS bool, startTLS bool) {
-	var cl *Client
-	var err error
-	if TLS {
-		cl, err = DialURL(ldapsServer, DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer cl.Close()
-	} else {
-		cl, err = DialURL(ldapServer)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer cl.Close()
-		if startTLS {
-			t.Log("TestMultiGoroutineSearch: using StartTLS...")
-			err := cl.StartTLS(&tls.Config{InsecureSkipVerify: true})
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	results := make([]chan *SearchResult, len(testFilters()))
-	for i := range testFilters() {
-		results[i] = make(chan *SearchResult)
-		go searchGoroutine(t, cl, results[i], i)
-	}
-	for i := range testFilters() {
-		sr := <-results[i]
-		if sr == nil {
-			t.Errorf("Did not receive results from goroutine for %q", testFilters()[i])
-		} else {
-			t.Logf("TestMultiGoroutineSearch(%d): %s -> num of entries = %d", i, testFilters()[i], len(sr.Entries))
-		}
-	}
-}
-
-func TestClientMultiGoroutineSearch(t *testing.T) {
-	t.Parallel()
-	testMultiGoroutineSearch(t, false, false)
-	testMultiGoroutineSearch(t, true, true)
-	testMultiGoroutineSearch(t, false, true)
-}
-
-func TestClientCompare(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	const dn = "cn=math mich,ou=User Groups,ou=Groups,dc=umich,dc=edu"
-	const attribute = "cn"
-	const value = "math mich"
-	sr, err := l.Compare(dn, attribute, value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("Compare result:", sr)
-}
-
-func TestClientMatchDNError(t *testing.T) {
-	t.Parallel()
-	l, err := DialURL(ldapServer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	const wrongBase = "ou=roups,dc=umich,dc=edu"
-	searchRequest := NewClientSearchRequest(
-		wrongBase,
-		ScopeWholeSubtree, DerefAliasesAlways, 0, 0, false,
-		testFilters()[0],
-		attributes,
-	)
-	_, err = l.Search(searchRequest)
-	if err == nil {
-		t.Fatal("Expected Error, got nil")
-	}
-	t.Log("TestMatchDNError:", err)
-}
-
-// TestNewEntry tests that repeated calls to NewEntry return the same value with the same input
-func TestClientNewEntry(t *testing.T) {
-	t.Parallel()
-	dn := "testDN"
-	attributes := map[string][]string{
-		"alpha":   {"value"},
-		"beta":    {"value"},
-		"gamma":   {"value"},
-		"delta":   {"value"},
-		"epsilon": {"value"},
-	}
-	executedEntry := NewEntry(dn, attributes)
-	iteration := 0
-	for {
-		if iteration == 100 {
-			break
-		}
-		testEntry := NewEntry(dn, attributes)
-		if !reflect.DeepEqual(executedEntry, testEntry) {
-			t.Fatalf("subsequent calls to NewEntry did not yield the same result:\n\texpected:\n\t%v\n\tgot:\n\t%v\n", executedEntry, testEntry)
-		}
-		iteration = iteration + 1
-	}
-}
-
-func TestClientGetAttributeValue(t *testing.T) {
-	t.Parallel()
-	dn := "testDN"
-	attributes := map[string][]string{
-		"Alpha":   {"value"},
-		"bEta":    {"value"},
-		"gaMma":   {"value"},
-		"delTa":   {"value"},
-		"epsiLon": {"value"},
-	}
-	entry := NewEntry(dn, attributes)
-	if entry.GetAttributeValue("Alpha") != "value" {
-		t.Errorf("failed to get attribute in original case")
-	}
-	if entry.GetEqualFoldAttributeValue("alpha") != "value" {
-		t.Errorf("failed to get attribute in changed case")
-	}
 }

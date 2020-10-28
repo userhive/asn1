@@ -1776,7 +1776,16 @@ func (req *ClientModifyRequest) Increment(attrType string, attrVal string) {
 }
 
 func (req *ClientModifyRequest) appendChange(operation uint, attrType string, attrVals []string) {
-	req.Changes = append(req.Changes, ldaputil.Change{operation, ldaputil.PartialAttribute{Type: attrType, Vals: attrVals}})
+	req.Changes = append(
+		req.Changes,
+		ldaputil.Change{
+			Operation: operation,
+			Modification: ldaputil.PartialAttribute{
+				Type: attrType,
+				Vals: attrVals,
+			},
+		},
+	)
 }
 
 func (req *ClientModifyRequest) AppendTo(envelope *ber.Packet) error {

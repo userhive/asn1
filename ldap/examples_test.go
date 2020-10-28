@@ -13,7 +13,7 @@ import (
 
 // This example demonstrates how to bind a connection to an ldap user
 // allowing access to restricted attributes that user has access to
-func ExampleClientBind() {
+func ExampleClient_Bind() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -25,7 +25,7 @@ func ExampleClientBind() {
 }
 
 // This example demonstrates how to use the search interface
-func ExampleClientSearch() {
+func ExampleClient_Search() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -47,7 +47,7 @@ func ExampleClientSearch() {
 }
 
 // This example demonstrates how to start a TLS connection
-func ExampleClientStartTLS() {
+func ExampleClient_StartTLS() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -61,7 +61,7 @@ func ExampleClientStartTLS() {
 }
 
 // This example demonstrates how to compare an attribute with a value
-func ExampleClientCompare() {
+func ExampleClient_Compare() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -74,7 +74,7 @@ func ExampleClientCompare() {
 	fmt.Println(matched)
 }
 
-func ExampleClientPasswordModifyAdmin() {
+func ExampleClient_PasswordModify() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -89,7 +89,7 @@ func ExampleClientPasswordModifyAdmin() {
 	}
 }
 
-func ExampleClientPasswordModifyGeneratedPassword() {
+func ExampleClient_PasswordModify_generatedPassword() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -106,7 +106,7 @@ func ExampleClientPasswordModifyGeneratedPassword() {
 	log.Printf("Generated password: %s", res.GeneratedPassword)
 }
 
-func ExampleClientPasswordModifySetNewPassword() {
+func ExampleClient_PasswordModify_setNewPassword() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -121,7 +121,7 @@ func ExampleClientPasswordModifySetNewPassword() {
 	}
 }
 
-func ExampleClientModify() {
+func ExampleClient_Modify() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -137,7 +137,7 @@ func ExampleClientModify() {
 }
 
 // This example shows how a typical application can verify a login attempt
-func ExampleClientUserAuthentication() {
+func ExampleClient_Bind_verifyLogin() {
 	// The username and password we want to check
 	username := "someuser"
 	password := "userpassword"
@@ -181,7 +181,7 @@ func ExampleClientUserAuthentication() {
 	}
 }
 
-func ExampleClientBeheraPasswordPolicy() {
+func ExampleClient_SimpleBind_controlBeheraPasswordPolicy() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -190,7 +190,6 @@ func ExampleClientBeheraPasswordPolicy() {
 	controls := []control.Control{
 		control.NewBeheraPasswordPolicy(),
 	}
-	controls = append(controls)
 	req := ldap.NewSimpleBindRequest("cn=admin,dc=example,dc=com", "password", controls...)
 	res, err := cl.SimpleBind(req)
 	if err != nil {
@@ -212,7 +211,7 @@ func ExampleClientBeheraPasswordPolicy() {
 	}
 }
 
-func ExampleClientVChuPasswordPolicy() {
+func ExampleClient_SimpleBind_controlVChuPasswordPolicy() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -247,7 +246,7 @@ func ExampleClientVChuPasswordPolicy() {
 
 // This example demonstrates how to use Paging to manually execute a
 // paginated search request instead of using SearchWithPaging.
-func ExampleClientPagingManualPaging() {
+func ExampleClient_Search_controlManualPaging() {
 	cl, err := ldap.DialURL("ldap://ldap.example.com:389")
 	if err != nil {
 		log.Fatal(err)
@@ -290,7 +289,7 @@ func ExampleClientPagingManualPaging() {
 }
 
 // This example demonstrates how to use EXTERNAL SASL with TLS client certificates.
-func ExampleClientExternalBind() {
+func ExampleClient_ExternalBind() {
 	ldapCert := "/path/to/cert.pem"
 	ldapKey := "/path/to/key.pem"
 	ldapCAchain := "/path/to/ca_chain.pem"
@@ -330,7 +329,7 @@ func ExampleClientExternalBind() {
 }
 
 // This example shows how to rename an entry without moving it
-func ExampleClientModifyDNRenameNoMove() {
+func ExampleClient_ModifyDN_renameNoMove() {
 	cl, err := ldap.DialURL("ldap://ldap.example.org:389")
 	if err != nil {
 		log.Fatalf("Failed to connect: %s", err)
@@ -351,7 +350,7 @@ func ExampleClientModifyDNRenameNoMove() {
 }
 
 // This example shows how to rename an entry and moving it to a new base
-func ExampleClientModifyDNRenameAndMove() {
+func ExampleClient_ModifyDN_renameAndMove() {
 	cl, err := ldap.DialURL("ldap://ldap.example.org:389")
 	if err != nil {
 		log.Fatalf("Failed to connect: %s", err)
@@ -373,7 +372,7 @@ func ExampleClientModifyDNRenameAndMove() {
 }
 
 // This example shows how to move an entry to a new base without renaming the RDN
-func ExampleClientModifyDNMoveOnly() {
+func ExampleClient_ModifyDN_moveOnly() {
 	cl, err := ldap.DialURL("ldap://ldap.example.org:389")
 	if err != nil {
 		log.Fatalf("Failed to connect: %s", err)
